@@ -1,0 +1,75 @@
+# PKCE Clients Configuration for IdP-Customer Realm
+# PUBLIC broker clients for SP-Customer realm
+
+realm: idp-customer
+
+# Mapper Configuration Guide:
+# 
+# 1. user_attribute mapper - Maps user attributes to JWT claims
+#    - name: Unique mapper name
+#    - user_attribute: Source attribute from user profile (email, firstName, lastName, username)
+#    - claim_name: Target claim name in JWT token (email, given_name, family_name, preferred_username)
+#
+# 2. audience mapper - Adds audience claim to token
+#    - name: Unique mapper name
+#    - audience: Target audience (use "self" for client's own client_id, or specify a UUID)
+#
+# Note: If no mappers are defined, a default audience mapper will be created automatically.
+
+clients:
+  - client_id: sp-customer-broker-pkce
+    name: SP Customer Broker (PKCE)
+    description: |
+      PUBLIC PKCE broker client for SP-Customer realm to federate authentication.
+      This is an alternative to the CONFIDENTIAL broker client, using PKCE instead of client secret.
+      [SP-Customer Realm] → [IdP-Customer PKCE Broker] → [IdP-Customer Users]
+    enabled: true
+    
+    # PKCE settings
+    pkce:
+      challenge_method: S256  # SHA-256
+    
+    # Redirect URIs - SP-Customer broker endpoints
+    redirect_uris:
+      - http://localhost:8080/realms/sp-customer/broker/idp-customer-oidc/endpoint/*
+      - http://localhost:8080/realms/sp-customer/broker/*/endpoint
+      - http://localhost:8080/realms/sp-customer/broker/idp-customer-oidc/endpoint
+    
+    # CORS web origins - Keycloak server
+    web_origins:
+      - http://localhost:8080
+    
+    # Token settings (in seconds)
+    token_settings:
+      access_token_lifespan: 300      # 5 minutes
+      session_idle_timeout: 1800      # 30 minutes
+      session_max_lifespan: 36000     # 10 hours
+    
+    # Additional settings
+    consent_required: false
+    
+    # Protocol Mappers (optional)
+    mappers:
+      - type: user_attribute
+        name: email
+        user_attribute: email
+        claim_name: email
+      
+      - type: user_attribute
+        name: firstName
+        user_attribute: firstName
+        claim_name: given_name
+      
+      - type: user_attribute
+        name: lastName
+        user_attribute: lastName
+        claim_name: family_name
+      
+      - type: user_attribute
+        name: username
+        user_attribute: username
+        claim_name: preferred_username
+      
+      - type: audience
+        name: audience
+        audience: self  # Use "self" for client's own client_id

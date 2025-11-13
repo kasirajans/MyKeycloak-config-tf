@@ -1,0 +1,143 @@
+# Identity Provider Configuration for SP-Customer Realm
+# Supports multiple IdP configurations
+
+realm: sp-customer
+
+providers:
+  - alias: idp-customer-oidc
+    display_name: "IdP Customer Authentication"
+    enabled: true
+    provider_type: oidc  # oidc, saml, or social (google, github, etc.)
+    
+    # OIDC Configuration for PKCE (PUBLIC client)
+    # Note: PKCE clients don't require client_secret
+    oidc:
+      client_id: "30a652ab-63fe-06eb-6c18-985f3bef823c"  # Get from: terraform output -json clients in app/idp-customer/pkce
+      # client_secret: NOT NEEDED for PKCE (PUBLIC client)
+      
+      # IdP Endpoints (can be auto-discovered or manually specified)
+      issuer: "http://localhost:8080/realms/idp-customer"
+      # OR manually specify endpoints:
+      authorization_url: "http://localhost:8080/realms/idp-customer/protocol/openid-connect/auth"
+      token_url: "http://localhost:8080/realms/idp-customer/protocol/openid-connect/token"
+      user_info_url: "http://localhost:8080/realms/idp-customer/protocol/openid-connect/userinfo"
+      jwks_url: "http://localhost:8080/realms/idp-customer/protocol/openid-connect/certs"
+      logout_url: "http://localhost:8080/realms/idp-customer/protocol/openid-connect/logout"
+      
+      # Scopes
+      default_scopes: "openid profile email"
+      
+      # PKCE Configuration
+      pkce_enabled: true  # Enable PKCE for this IdP connection
+    
+    # Settings
+    settings:
+      store_token: true
+      trust_email: true
+      link_only: false
+      hide_on_login_page: false
+      first_broker_login_flow_alias: "first broker login"
+      sync_mode: "FORCE"  # FORCE will update user info from IdP on each login
+      validate_signature: true
+      gui_order: 1
+    
+    # Attribute Mappers
+    mappers:
+      - name: email
+        claim_name: email
+        user_attribute: email
+        sync_mode: "INHERIT"  # INHERIT, IMPORT, LEGACY, FORCE
+      
+      - name: firstName
+        claim_name: given_name
+        user_attribute: firstName
+        sync_mode: "INHERIT"
+      
+      - name: lastName
+        claim_name: family_name
+        user_attribute: lastName
+        sync_mode: "INHERIT"
+      
+      - name: username
+        claim_name: preferred_username
+        user_attribute: username
+        sync_mode: "INHERIT"
+
+  # Example: Add another IdP (Google)
+  # - alias: google
+  #   display_name: "Sign in with Google"
+  #   enabled: true
+  #   provider_type: social
+  #   
+  #   social:
+  #     provider: google
+  #     client_id: "your-google-client-id"
+  #     client_secret: "your-google-client-secret"
+  #   
+  #   settings:
+  #     store_token: false
+  #     trust_email: true
+  #     link_only: false
+  #     hide_on_login_page: false
+  #     sync_mode: "IMPORT"
+  #     gui_order: 2
+  #   
+  #   mappers:
+  #     - name: email
+  #       claim_name: email
+  #       user_attribute: email
+  #       sync_mode: "INHERIT"
+  #     
+  #     - name: firstName
+  #       claim_name: given_name
+  #       user_attribute: firstName
+  #       sync_mode: "INHERIT"
+  #     
+  #     - name: lastName
+  #       claim_name: family_name
+  #       user_attribute: lastName
+  #       sync_mode: "INHERIT"
+
+  # Example: Add another Keycloak instance (different server)
+  # - alias: partner-idp
+  #   display_name: "Partner Company Login"
+  #   enabled: true
+  #   provider_type: oidc
+  #   
+  #   oidc:
+  #     client_id: "your-partner-client-id"
+  #     client_secret: "your-partner-client-secret"
+  #     
+  #     issuer: "https://auth.partner.com/realms/main"
+  #     authorization_url: "https://auth.partner.com/realms/main/protocol/openid-connect/auth"
+  #     token_url: "https://auth.partner.com/realms/main/protocol/openid-connect/token"
+  #     user_info_url: "https://auth.partner.com/realms/main/protocol/openid-connect/userinfo"
+  #     jwks_url: "https://auth.partner.com/realms/main/protocol/openid-connect/certs"
+  #     logout_url: "https://auth.partner.com/realms/main/protocol/openid-connect/logout"
+  #     
+  #     default_scopes: "openid profile email"
+  #   
+  #   settings:
+  #     store_token: true
+  #     trust_email: false
+  #     link_only: false
+  #     hide_on_login_page: false
+  #     sync_mode: "IMPORT"
+  #     validate_signature: true
+  #     gui_order: 3
+  #   
+  #   mappers:
+  #     - name: email
+  #       claim_name: email
+  #       user_attribute: email
+  #       sync_mode: "INHERIT"
+  #     
+  #     - name: firstName
+  #       claim_name: given_name
+  #       user_attribute: firstName
+  #       sync_mode: "INHERIT"
+  #     
+  #     - name: lastName
+  #       claim_name: family_name
+  #       user_attribute: lastName
+  #       sync_mode: "INHERIT"

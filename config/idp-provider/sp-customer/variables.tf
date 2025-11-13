@@ -1,12 +1,7 @@
 variable "keycloak_url" {
   description = "The URL of the Keycloak server"
   type        = string
-}
-
-variable "keycloak_realm" {
-  description = "The Keycloak realm to manage users in"
-  type        = string
-  default     = "master"
+  default     = "http://localhost:8080"
 }
 
 variable "keycloak_client_id" {
@@ -33,4 +28,6 @@ variable "keycloak_admin_realm" {
   default     = "master"
 }
 
+# Note: All IdP configuration is now managed in idpprovider.yml
+# Edit that file to add/modify identity providers
 

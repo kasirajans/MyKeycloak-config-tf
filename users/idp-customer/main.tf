@@ -21,7 +21,14 @@ provider "keycloak" {
 
 # Read consumer users from CSV file
 locals {
-  users_csv = csvdecode(file("${path.module}/user.csv"))
+  users_csv_raw = csvdecode(file("${path.module}/user.csv"))
+  
+  # Generate email addresses based on realm name: firstname.lastname@realm.com
+  users_csv = [
+    for user in local.users_csv_raw : merge(user, {
+      email = lower("${lookup(user, "first_name", "")}${lookup(user, "last_name", "") != "" ? ".${lookup(user, "last_name", "")}" : ""}@${var.keycloak_realm}.com")
+    })
+  ]
   
   # Extract unique group names from CSV
   all_groups = distinct(flatten([
