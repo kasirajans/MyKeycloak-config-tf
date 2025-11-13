@@ -1,0 +1,95 @@
+# Example: Multiple M2M Clients Configuration
+
+realm: customer
+
+# PKCE Clients - Can have multiple
+pkce_clients:
+  webapp:
+    client_id: webapp-pkce
+    name: Web Application (PKCE)
+    enabled: true
+    flows:
+      standard_flow: true
+      direct_access_grants: false
+      implicit_flow: false
+      service_accounts: false
+    pkce:
+      challenge_method: S256
+    redirect_uris:
+      - http://localhost:5173/callback
+    web_origins:
+      - http://localhost:5173
+    token_settings:
+      access_token_lifespan: 300
+      session_idle_timeout: 1800
+      session_max_lifespan: 36000
+    consent_required: false
+
+  mobile_app:
+    client_id: mobile-app-pkce
+    name: Mobile Application (PKCE)
+    enabled: true
+    flows:
+      standard_flow: true
+      direct_access_grants: false
+      implicit_flow: false
+      service_accounts: false
+    pkce:
+      challenge_method: S256
+    redirect_uris:
+      - myapp://callback
+    web_origins:
+      - "*"
+    token_settings:
+      access_token_lifespan: 300
+      session_idle_timeout: 1800
+      session_max_lifespan: 36000
+    consent_required: false
+
+# M2M Clients - Can have multiple with auto-generated secrets
+m2m_clients:
+  backend_service:
+    client_id: backend-service-m2m
+    name: Backend Service (M2M)
+    enabled: true
+    flows:
+      standard_flow: false
+      direct_access_grants: false
+      implicit_flow: false
+      service_accounts: true
+    token_settings:
+      access_token_lifespan: 3600
+    service_account_roles: []
+
+  analytics_service:
+    client_id: analytics-service-m2m
+    name: Analytics Service (M2M)
+    enabled: true
+    flows:
+      standard_flow: false
+      direct_access_grants: false
+      implicit_flow: false
+      service_accounts: true
+    token_settings:
+      access_token_lifespan: 7200
+    service_account_roles: []
+
+  notification_service:
+    client_id: notification-service-m2m
+    name: Notification Service (M2M)
+    enabled: true
+    flows:
+      standard_flow: false
+      direct_access_grants: false
+      implicit_flow: false
+      service_accounts: true
+    token_settings:
+      access_token_lifespan: 3600
+    service_account_roles: []
+
+# Protocol mappers
+mappers:
+  audience_mapper:
+    enabled: true
+    add_to_id_token: true
+    add_to_access_token: true

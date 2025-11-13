@@ -1,0 +1,36 @@
+# Password Grant (ROPC) Clients Configuration
+# Resource Owner Password Credentials Flow
+# ⚠️  WARNING: This flow is considered legacy and less secure than modern flows
+# Only use for migration scenarios or legacy applications that cannot use PKCE
+
+realm: customer
+
+clients:
+  - client_id: legacy-app-password
+    name: Legacy Application (Password Grant)
+    description: Confidential client using Resource Owner Password Credentials flow
+    enabled: true
+    
+    # Token settings (in seconds)
+    token_settings:
+      access_token_lifespan: 300       # 5 minutes
+      refresh_token_lifespan: 1800     # 30 minutes
+      session_idle_timeout: 1800       # 30 minutes
+      session_max_lifespan: 36000      # 10 hours
+    
+    # Additional settings
+    consent_required: false
+
+  - client_id: mobile-legacy-password
+    name: Mobile Legacy App (Password Grant)
+    description: Public client for legacy mobile apps using password flow
+    enabled: true
+    access_type: PUBLIC  # Can be PUBLIC or CONFIDENTIAL
+    
+    token_settings:
+      access_token_lifespan: 600       # 10 minutes
+      refresh_token_lifespan: 3600     # 1 hour
+      session_idle_timeout: 3600       # 1 hour
+      session_max_lifespan: 43200      # 12 hours
+    
+    consent_required: false

@@ -1,0 +1,80 @@
+# Terraform Files
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+*.tfvars
+!terraform.tfvars.example
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Sensitive Data Files
+*.csv
+!users.csv.example
+*.json
+!package.json
+!tsconfig.json
+!**/package.json
+!**/tsconfig.json
+
+# User Credentials Exports
+user_credentials.csv
+complete_user_info.json
+user_credentials.json
+credentials_export.*
+
+# Environment Files
+.env
+.env.*
+!.env.example
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS Files
+Thumbs.db
+Desktop.ini
+
+# Backup Files
+*.bak
+*.backup
+*.old
+
+# Log Files
+*.log
+logs/
+
+# Generated Documentation
+docs/generated/
+
+# Node Modules (if any JavaScript tooling)
+node_modules/
+
+# Python Virtual Environments
+venv/
+env/
+.venv/
+*.pyc
+__pycache__/
+
+# Keycloak Specific Secrets
+*secret*.txt
+*password*.txt
+*credentials*.txt
+
+# Shell Scripts Output
+*.out
+output/

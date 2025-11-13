@@ -1,0 +1,39 @@
+# M2M Clients Configuration
+# Multiple M2M (Client Credentials) OAuth clients for service-to-service communication
+
+realm: customer
+
+clients:
+  - client_id: backend-service-m2m
+    name: Backend Service (M2M)
+    description: Confidential client for backend service communication
+    enabled: true
+    
+    # Token settings (in seconds)
+    token_settings:
+      access_token_lifespan: 3600  # 1 hour
+    
+    # Service account roles (optional)
+    service_account_roles: []
+      # - view-users
+      # - manage-users
+
+  - client_id: api-gateway-m2m
+    name: API Gateway (M2M)
+    description: Confidential client for API gateway service
+    enabled: true
+    
+    token_settings:
+      access_token_lifespan: 1800  # 30 minutes
+    
+    service_account_roles: []
+
+  - client_id: microservice-a-m2m
+    name: Microservice A (M2M)
+    description: Confidential client for microservice A
+    enabled: true
+    
+    token_settings:
+      access_token_lifespan: 3600  # 1 hour
+    
+    service_account_roles: []
