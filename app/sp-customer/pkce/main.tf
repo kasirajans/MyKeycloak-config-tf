@@ -82,6 +82,9 @@ resource "keycloak_openid_client" "pkce" {
 
   valid_redirect_uris = each.value.redirect_uris
   web_origins         = each.value.web_origins
+  
+  # Post-logout redirect URIs for Single Logout (SLO)
+  valid_post_logout_redirect_uris = lookup(each.value, "valid_post_logout_redirect_uris", [])
 
   # Token settings
   access_token_lifespan       = tostring(each.value.token_settings.access_token_lifespan)

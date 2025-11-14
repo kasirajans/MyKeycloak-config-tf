@@ -66,7 +66,7 @@ resource "keycloak_oidc_identity_provider" "providers" {
   # Additional settings
   accepts_prompt_none_forward_from_client = false
   disable_user_info                       = false
-  backchannel_supported                   = false
+  backchannel_supported                   = true  # Enable backchannel logout for SLO
   link_only                               = try(each.value.settings.link_only, false)
   
   # PKCE Configuration via extra_config

@@ -44,6 +44,9 @@ clients:
       - http://localhost:8081
       - http://localhost:4200
     
+    # Valid post-logout redirect URIs for Single Logout (SLO)
+    valid_post_logout_redirect_uris:
+      - http://localhost:5173
     # Token settings (in seconds)
     token_settings:
       access_token_lifespan: 300      # 5 minutes
