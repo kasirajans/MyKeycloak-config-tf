@@ -12,7 +12,7 @@ providers:
     # OIDC Configuration for PKCE (PUBLIC client)
     # Note: PKCE clients don't require client_secret
     oidc:
-      client_id: "30a652ab-63fe-06eb-6c18-985f3bef823c"  # Get from: terraform output -json clients in app/idp-customer/pkce
+      client_id: "1a99e276-680f-502d-02c1-5fccb6911cbf"  # Get from: terraform output -json clients in app/idp-customer/pkce
       # client_secret: NOT NEEDED for PKCE (PUBLIC client)
       
       # IdP Endpoints (can be auto-discovered or manually specified)

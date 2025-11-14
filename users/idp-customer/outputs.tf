@@ -52,3 +52,17 @@ output "user_credentials_summary" {
     }
   }
 }
+
+output "user_credentials" {
+  description = "Complete user credentials with passwords (SENSITIVE - store securely!)"
+  value = {
+    for email, user in keycloak_user.users : email => {
+      username   = user.username
+      email      = email
+      password   = random_password.user_passwords[email].result
+      temporary  = tobool(lookup(local.users_csv[index(local.users_csv.*.email, email)], "temporary_password", "true"))
+      groups     = split(",", lookup(local.users_csv[index(local.users_csv.*.email, email)], "groups", ""))
+    }
+  }
+  sensitive = true
+}

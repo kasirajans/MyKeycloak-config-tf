@@ -94,8 +94,8 @@ Output:
   "john.doe@idp-customer.com": {
     "email": "john.doe@idp-customer.com",
     "groups": ["developers", "users"],
-    "password": "Abc123!@#XyzDef456",
-    "temporary": true,
+    "password": "N&&LC*h*n7lKFdC^",
+    "temporary": false,
     "username": "john.doe@idp-customer.com"
   }
 }
@@ -103,12 +103,22 @@ Output:
 
 ### Get Specific User Password
 ```bash
-terraform output -json user_credentials | jq -r '.["john.doe@idp-customer.com"].password'
+terraform output -json user_passwords | jq -r '.["john.doe@idp-customer.com"]'
+```
+
+### Get Complete User Credentials
+```bash
+terraform output -json user_credentials | jq -r '.["john.doe@idp-customer.com"]'
+```
+
+### Get All Passwords
+```bash
+terraform output -json user_passwords
 ```
 
 ### Get Groups
 ```bash
-terraform output groups
+terraform output created_groups
 ```
 
 ## 📝 Adding Users
@@ -130,7 +140,7 @@ terraform apply
 
 3. Get new user's password:
 ```bash
-terraform output -json user_credentials | jq -r '.["alice.smith@idp-customer.com"].password'
+terraform output -json user_passwords | jq -r '.["alice.smith@idp-customer.com"]'
 ```
 
 ## 👥 Group Management
@@ -248,7 +258,7 @@ Remove user from state and re-create:
 ```bash
 terraform state rm 'keycloak_user.users["john.doe@idp-customer.com"]'
 terraform apply
-terraform output -json user_credentials | jq -r '.["john.doe@idp-customer.com"].password'
+terraform output -json user_passwords | jq -r '.["john.doe@idp-customer.com"]'
 ```
 
 ### Remove a User
