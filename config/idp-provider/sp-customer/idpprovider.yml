@@ -63,6 +63,70 @@ providers:
         user_attribute: username
         sync_mode: "INHERIT"
 
+  # PingOne Identity Provider
+  - alias: pingone-oidc
+    display_name: "Sign in with PingOne"
+    enabled: true
+    provider_type: oidc
+    
+    # PingOne OIDC Configuration
+    oidc:
+      client_id: "2dd522cd-18a3-4147-9200-f30668f9ef11"  # Updated client ID after converting to Auth Code flow
+      client_secret: "-qKkAtOpLo_.JGgYSaI3QGuaaNaO939Vs5r1tXTzO_1k2QoZE1soexqDxVdJNhQj"  # Get from PingOne Console
+      
+      # PingOne Endpoints (Environment: ff0e371b-4b98-47f0-acfa-64b685accc8b)
+      issuer: "https://auth.pingone.com/ff0e371b-4b98-47f0-acfa-64b685accc8b/as"
+      authorization_url: "https://auth.pingone.com/ff0e371b-4b98-47f0-acfa-64b685accc8b/as/authorize"
+      token_url: "https://auth.pingone.com/ff0e371b-4b98-47f0-acfa-64b685accc8b/as/token"
+      user_info_url: "https://auth.pingone.com/ff0e371b-4b98-47f0-acfa-64b685accc8b/as/userinfo"
+      jwks_url: "https://auth.pingone.com/ff0e371b-4b98-47f0-acfa-64b685accc8b/as/jwks"
+      logout_url: "https://auth.pingone.com/ff0e371b-4b98-47f0-acfa-64b685accc8b/as/signoff"
+      backchannel_logout_url: "https://auth.pingone.com/ff0e371b-4b98-47f0-acfa-64b685accc8b/as/idpSignoff"
+      
+      # Scopes (PingOne supports: openid, profile, email, address, phone, offline_access)
+      default_scopes: "openid profile email"
+      
+      # PKCE Configuration - DISABLE for Authorization Code flow with client secret
+      pkce_enabled: false
+    
+    # Settings
+    settings:
+      store_token: true
+      trust_email: true
+      link_only: false
+      hide_on_login_page: false
+      first_broker_login_flow_alias: "first broker login"
+      sync_mode: "FORCE"  # IMPORT will create user on first login, keep SP-Customer as master
+      validate_signature: true
+      gui_order: 2
+    
+    # Attribute Mappers for PingOne
+    mappers:
+      - name: email
+        claim_name: email
+        user_attribute: email
+        sync_mode: "INHERIT"
+      
+      - name: firstName
+        claim_name: given_name
+        user_attribute: firstName
+        sync_mode: "INHERIT"
+      
+      - name: lastName
+        claim_name: family_name
+        user_attribute: lastName
+        sync_mode: "INHERIT"
+      
+      - name: username
+        claim_name: preferred_username
+        user_attribute: username
+        sync_mode: "INHERIT"
+      
+      - name: fullName
+        claim_name: name
+        user_attribute: fullName
+        sync_mode: "INHERIT"
+
   # Example: Add another IdP (Google)
   # - alias: google
   #   display_name: "Sign in with Google"

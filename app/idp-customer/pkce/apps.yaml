@@ -34,6 +34,7 @@ clients:
       - http://localhost:8080/realms/sp-customer/broker/idp-customer-oidc/endpoint/*
       - http://localhost:8080/realms/sp-customer/broker/*/endpoint
       - http://localhost:8080/realms/sp-customer/broker/idp-customer-oidc/endpoint
+      - http://localhost:5173/callback
     
     # CORS web origins - Keycloak server
     web_origins:

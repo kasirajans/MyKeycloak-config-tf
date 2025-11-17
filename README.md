@@ -197,7 +197,7 @@ Then just run: `terraform apply`
 - **Where**: Used in IdP-Customer broker client and SP-Customer PKCE clients
 - **How**: `pkce_enabled: true` in configuration
 
-### Identity Federation Flow
+### Identity Federation Flow (Login)
 
 ```
 [User's Browser]
@@ -206,30 +206,113 @@ Then just run: `terraform apply`
       │
       ├─► 2. App initiates PKCE login to SP-Customer
       │       POST /realms/sp-customer/protocol/openid-connect/auth
-      │       + code_challenge (PKCE)
+      │       + client_id=<CLIENT_UUID>
+      │       + redirect_uri=http://localhost:5173/callback
+      │       + response_type=code
+      │       + scope=openid profile email
+      │       + code_challenge (PKCE - SHA256 hash)
+      │       + code_challenge_method=S256
       │
       ├─► 3. SP-Customer shows login page
       │       "Login" or "IdP Customer Authentication" button
       │
       ├─► 4. User clicks "IdP Customer Authentication"
+      │       (triggers broker flow to IdP-Customer)
       │
       ├─► 5. SP-Customer redirects to IdP-Customer (PKCE)
       │       GET /realms/idp-customer/protocol/openid-connect/auth
+      │       + client_id=sp-customer-broker-pkce (broker client)
       │       + code_challenge (passed through)
+      │       + code_challenge_method=S256
       │
       ├─► 6. User logs in to IdP-Customer
-      │       john.doe@idp-customer.com / password
+      │       Username: john.doe@idp-customer.com
+      │       Password: [from terraform output]
       │
-      ├─► 7. IdP-Customer redirects back to SP-Customer
+      ├─► 7. IdP-Customer validates credentials & returns auth code
+      │       Redirects back to SP-Customer broker endpoint
       │       + authorization_code
       │
       ├─► 8. SP-Customer exchanges code for token (with PKCE verifier)
+      │       POST /realms/idp-customer/protocol/openid-connect/token
+      │       + grant_type=authorization_code
+      │       + code=<authorization_code>
+      │       + code_verifier (PKCE - original random string)
+      │       + client_id=sp-customer-broker-pkce
       │
-      ├─► 9. SP-Customer creates/links user
+      ├─► 9. IdP-Customer validates code_verifier and returns tokens
+      │       Returns: access_token, id_token, refresh_token
       │
-      └─► 10. SP-Customer redirects to app with token
-              App is now authenticated!
+      ├─► 10. SP-Customer creates/updates/links user account
+      │        - First time: Creates new user with email from IdP
+      │        - Subsequent: Links to existing user or updates attributes
+      │        - Sync mode controls: import/force/legacy
+      │
+      └─► 11. SP-Customer redirects to app with SP-Customer token
+              + authorization_code (for SP-Customer realm)
+              
+      ├─► 12. App exchanges SP code for SP-Customer tokens
+              POST /realms/sp-customer/protocol/openid-connect/token
+              + grant_type=authorization_code
+              + code=<sp_authorization_code>
+              + code_verifier (app's original PKCE verifier)
+              + client_id=<APP_CLIENT_UUID>
+              
+      └─► 13. App receives tokens and user is authenticated!
+              access_token, id_token, refresh_token (from SP-Customer)
 ```
+
+### Logout Flow
+
+```
+[User's Browser - Logout Initiated]
+      │
+      ├─► 1. App initiates logout
+      │       GET /realms/sp-customer/protocol/openid-connect/logout
+      │       + id_token_hint=<user's_id_token>
+      │       + post_logout_redirect_uri=http://localhost:5173
+      │       + client_id=<CLIENT_UUID>
+      │
+      ├─► 2. SP-Customer terminates local session
+      │       - Invalidates access_token
+      │       - Clears SSO session cookies
+      │       - Marks session as logged out
+      │
+      ├─► 3. SP-Customer propagates logout to IdP-Customer (backchannel)
+      │       POST /realms/idp-customer/protocol/openid-connect/logout
+      │       + Terminates IdP session
+      │       + Clears IdP SSO cookies
+      │
+      ├─► 4. SP-Customer redirects to post_logout_redirect_uri
+      │       User is redirected back to app
+      │
+      └─► 5. App clears local tokens and session
+              User is fully logged out from:
+              - Application
+              - SP-Customer realm
+              - IdP-Customer realm (via broker)
+```
+
+### Session Management
+
+**Token Lifespans:**
+- **Access Token**: 5 minutes (300s)
+- **SSO Session Idle**: 30 minutes (1800s)
+- **SSO Session Max**: 10 hours (36000s)
+- **Offline Session Idle**: 30 days
+- **Offline Session Max**: 60 days
+
+**Single Sign-On (SSO):**
+- User logs in once to IdP-Customer
+- Automatically authenticated to SP-Customer (and any other federated realms)
+- SSO session maintained across all federated realms
+- Logout from one realm logs out from all realms (if backchannel enabled)
+
+**Session Timeout:**
+- After 30 minutes of inactivity → Token refresh required
+- After 10 hours max → Must re-authenticate
+- Refresh tokens can extend session without re-login (until offline max)
+
 
 ## 📝 Common Tasks
 
@@ -291,8 +374,8 @@ python3 -m http.server 5173 &
 open http://localhost:5173
 
 # Manually construct PKCE login URL:
-# 1. Generate code_verifier (random string)
-# 2. Generate code_challenge (SHA256 hash of verifier)
+# 1. Generate code_verifier (random string, 43-128 chars)
+# 2. Generate code_challenge (SHA256 hash of verifier, base64url encoded)
 # 3. Navigate to:
 #    http://localhost:8080/realms/sp-customer/protocol/openid-connect/auth
 #    ?client_id=<CLIENT_UUID>
@@ -301,6 +384,88 @@ open http://localhost:5173
 #    &scope=openid profile email
 #    &code_challenge=<CHALLENGE>
 #    &code_challenge_method=S256
+#    &state=<RANDOM_STATE>
+
+# 4. Click "IdP Customer Authentication" button
+# 5. Login with: john.doe@idp-customer.com / [password from terraform output]
+# 6. Exchange authorization code for tokens
+#    POST http://localhost:8080/realms/sp-customer/protocol/openid-connect/token
+#    grant_type=authorization_code
+#    code=<AUTH_CODE>
+#    redirect_uri=http://localhost:5173/callback
+#    client_id=<CLIENT_UUID>
+#    code_verifier=<ORIGINAL_VERIFIER>
+```
+
+### Test Logout Flow
+
+```bash
+# After successful login, initiate logout:
+# Navigate to:
+http://localhost:8080/realms/sp-customer/protocol/openid-connect/logout \
+  ?id_token_hint=<USER_ID_TOKEN> \
+  &post_logout_redirect_uri=http://localhost:5173 \
+  &client_id=<CLIENT_UUID>
+
+# OR use refresh token revocation:
+curl -X POST http://localhost:8080/realms/sp-customer/protocol/openid-connect/logout \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "client_id=<CLIENT_UUID>" \
+  -d "refresh_token=<REFRESH_TOKEN>"
+
+# Verify logout:
+# 1. Try to use the old access_token - should fail (401)
+# 2. Try to refresh with old refresh_token - should fail
+# 3. Try to access Keycloak account page - should require login
+```
+
+### Test SSO (Single Sign-On)
+
+```bash
+# 1. Login to SP-Customer realm app (as shown above)
+# 2. Open new tab/window and navigate to another SP-Customer app
+# 3. User should be automatically logged in (SSO session active)
+# 4. No re-authentication required
+
+# Test SSO across realms:
+# - Login via SP-Customer → IdP-Customer (federated)
+# - Navigate to another app using IdP-Customer directly
+# - Should auto-authenticate (same IdP session)
+```
+
+### Test Token Refresh
+
+```bash
+# Get initial tokens
+ACCESS_TOKEN="<access_token>"
+REFRESH_TOKEN="<refresh_token>"
+CLIENT_ID="<client_uuid>"
+
+# Wait for access token to expire (5 minutes) or use expired token
+
+# Refresh the access token:
+curl -X POST http://localhost:8080/realms/sp-customer/protocol/openid-connect/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=refresh_token" \
+  -d "refresh_token=$REFRESH_TOKEN" \
+  -d "client_id=$CLIENT_ID"
+
+# Response includes new access_token, refresh_token, and id_token
+```
+
+### Get User Passwords for Testing
+
+```bash
+cd users/idp-customer
+
+# Get all user credentials
+terraform output -json user_credentials
+
+# Get specific user's password
+terraform output -json user_passwords | jq -r '.["john.doe@idp-customer.com"]'
+
+# Get user with groups
+terraform output -json user_credentials | jq -r '.["john.doe@idp-customer.com"]'
 ```
 
 ### Verify Federation

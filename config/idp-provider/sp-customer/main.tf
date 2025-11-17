@@ -49,7 +49,7 @@ resource "keycloak_oidc_identity_provider" "providers" {
   
   # Client credentials
   client_id     = each.value.oidc.client_id
-  client_secret = try(each.value.oidc.client_secret, "")  # Optional for PKCE
+  client_secret = try(each.value.oidc.client_secret, "")  # Empty string for PKCE public clients
   
   # Token validation
   validate_signature   = try(each.value.settings.validate_signature, true)
@@ -66,14 +66,22 @@ resource "keycloak_oidc_identity_provider" "providers" {
   # Additional settings
   accepts_prompt_none_forward_from_client = false
   disable_user_info                       = false
-  backchannel_supported                   = true  # Enable backchannel logout for SLO
+  backchannel_supported                   = true  # Enable backchannel logout with proper URI configured
   link_only                               = try(each.value.settings.link_only, false)
   
-  # PKCE Configuration via extra_config
-  extra_config = try(each.value.oidc.pkce_enabled, false) ? {
-    "pkceEnabled" = "true"
-    "pkceMethod"  = "S256"  # SHA-256 challenge method
-  } : {}
+  # PKCE and authentication configuration via extra_config
+  extra_config = merge(
+    try(each.value.oidc.pkce_enabled, false) ? {
+      "pkceEnabled" = "true"
+      "pkceMethod"  = "S256"  # SHA-256 challenge method
+    } : {},
+    try(each.value.oidc.client_secret, null) == null ? {
+      "clientAuthMethod" = "none"  # No client authentication for public PKCE clients
+    } : {},
+    try(each.value.oidc.backchannel_logout_url, null) != null ? {
+      "backchannelLogoutUrl" = each.value.oidc.backchannel_logout_url
+    } : {}
+  )
 }
 
 # Create a flat map of all mappers for all providers

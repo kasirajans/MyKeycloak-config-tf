@@ -5,35 +5,56 @@ This guide explains how to implement Single Logout across the federated Keycloak
 ## 🔄 Logout Flow
 
 ```
-[User clicks Logout in SPA]
-     │
-     ├─► 1. SPA clears local tokens from storage
-     │      - sessionStorage.removeItem('access_token')
-     │      - sessionStorage.removeItem('id_token')
-     │
-     ├─► 2. SPA redirects to SP-Customer logout endpoint
-     │      GET /realms/sp-customer/protocol/openid-connect/logout
-     │      + id_token_hint (user's ID token)
-     │      + post_logout_redirect_uri (where to go after logout)
-     │
-     ├─► 3. SP-Customer (Keycloak B) logs out user
-     │      - Invalidates SP-Customer session
-     │      - Checks if user logged in via IdP
-     │
-     ├─► 4. SP-Customer calls IdP-Customer logout (backchannel)
-     │      POST /realms/idp-customer/protocol/openid-connect/logout
-     │      - Invalidates IdP-Customer session
-     │
-     ├─► 5. IdP-Customer clears session
-     │      - User logged out from IdP-Customer
-     │      - Session tokens revoked
-     │
-     ├─► 6. SP-Customer receives confirmation
-     │      - Completes logout process
-     │
-     └─► 7. User redirected to post_logout_redirect_uri
-           - SPA shows "logged out" page
-           - User can login again
+┌──────────────┐
+│  React App   │ (localhost:5173)
+│ (User clicks │
+│   Logout)    │
+└──────┬───────┘
+       │ 1. POST /logout
+       │    - id_token_hint
+       │    - client_id  
+       │    - post_logout_redirect_uri
+       ↓
+┌──────────────────────────────────┐
+│   Keycloak SP-Customer Realm     │ (via ngrok HTTPS)
+│                                  │
+│  1. Validates id_token_hint      │
+│  2. Terminates local session     │
+└──────┬───────────────────────┬───┘
+       │ 3. Backchannel        │ 7. Redirect
+       │    Logout             │    to React
+       ↓                       ↓
+┌──────────────┐        ┌──────────┐
+│   PingOne    │◄──────►│ Browser  │
+│              │  6.    └──────────┘
+│ POST /as/    │  Backchannel
+│  idpSignoff  │  Response
+│              │
+│ 4. Validates │
+│    logout_   │
+│    token     │
+│ 5. Ends      │
+│    session   │
+│              │
+│ 6. Sends     │
+│    logout_   │
+│    token     │
+│    back to   │
+│    Keycloak  │
+└──────────────┘
+       │
+       │ POST to:
+       │ /realms/sp-customer/broker/
+       │  pingone-oidc/backchannel-logout
+       ↓
+┌──────────────────────────────────┐
+│   Keycloak SP-Customer           │
+│   (Backchannel Logout Endpoint)  │
+│                                  │
+│  1. Validates logout_token       │
+│  2. Verifies signature           │
+│  3. Ends any remaining sessions  │
+└──────────────────────────────────┘
 ```
 
 ## 📝 SPA Implementation
@@ -51,9 +72,16 @@ const POST_LOGOUT_REDIRECT_URI = 'http://localhost:5173/logged-out';
 
 /**
  * Perform Single Logout
+ * 
+ * Note: id_token_hint is OPTIONAL. Keycloak can logout using:
+ * 1. id_token_hint (explicit user identification)
+ * 2. Session cookie (implicit user identification via browser session)
+ * 
+ * For better security and explicit logout, id_token_hint is recommended
+ * but not required if session cookie is present.
  */
 function logout() {
-  // 1. Get ID token from storage
+  // 1. Get ID token from storage (optional)
   const idToken = sessionStorage.getItem('id_token');
   
   // 2. Clear tokens from local storage
@@ -69,13 +97,13 @@ function logout() {
     `${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/logout`
   );
   
-  // 4. Add query parameters
+  // 4. Add required query parameters
   const params = {
     post_logout_redirect_uri: POST_LOGOUT_REDIRECT_URI,
     client_id: CLIENT_ID
   };
   
-  // Add id_token_hint if available (recommended)
+  // Add id_token_hint if available (optional but recommended)
   if (idToken) {
     params.id_token_hint = idToken;
   }
@@ -86,6 +114,7 @@ function logout() {
   );
   
   // 5. Redirect to logout endpoint
+  // Keycloak will use session cookie if id_token_hint is not provided
   window.location.href = logoutUrl.toString();
 }
 
@@ -405,11 +434,36 @@ POST http://localhost:8080/realms/idp-customer/protocol/openid-connect/logout
 
 ## 🔒 Security Considerations
 
-### 1. Use ID Token Hint
-Always include `id_token_hint` parameter:
-- Prevents CSRF attacks
-- Ensures correct user is logged out
+### 1. ID Token Hint (Optional but Recommended)
+The `id_token_hint` parameter is **optional**:
+
+**✅ With id_token_hint:**
+- Explicitly identifies which user to logout
+- More secure - prevents CSRF attacks
+- Works even if session cookie is missing
 - Recommended by OIDC specification
+
+**✅ Without id_token_hint:**
+- Keycloak uses session cookie to identify user
+- Still performs full logout (local + backchannel)
+- Simpler implementation
+- Requires valid session cookie in browser
+
+```javascript
+// Both approaches work:
+
+// Approach 1: With id_token_hint (more secure)
+const logoutUrl = `${url}?client_id=${clientId}&id_token_hint=${idToken}&post_logout_redirect_uri=${redirectUri}`;
+
+// Approach 2: Without id_token_hint (relies on session cookie)
+const logoutUrl = `${url}?client_id=${clientId}&post_logout_redirect_uri=${redirectUri}`;
+```
+
+**When to use id_token_hint:**
+- Cross-domain logout scenarios
+- When session cookies might be blocked
+- Enhanced security requirements
+- Compliance with strict OIDC implementations
 
 ### 2. Validate Post-Logout URIs
 Only register trusted URIs:
