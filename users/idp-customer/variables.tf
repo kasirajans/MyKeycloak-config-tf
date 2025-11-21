@@ -6,7 +6,7 @@ variable "keycloak_url" {
 variable "keycloak_realm" {
   description = "The existing Keycloak realm to manage users in"
   type        = string
-  default     = "consumer"
+  default     = "idp-customer"
 }
 
 variable "keycloak_client_id" {
