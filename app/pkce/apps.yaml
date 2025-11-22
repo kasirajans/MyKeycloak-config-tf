@@ -27,7 +27,7 @@ clients:
     
     # Authentication Flow Configuration
     authentication_flow:
-      browser_flow: mfa-browser
+      browser_flow: passwordless
     
     # PKCE settings
     pkce:

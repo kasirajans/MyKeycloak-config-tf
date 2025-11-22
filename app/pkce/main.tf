@@ -25,6 +25,12 @@ locals {
   config  = yamldecode(file("${path.module}/apps.yaml"))
   clients = { for idx, client in local.config.clients : client.client_id => client }
   
+  # Get unique authentication flows referenced by clients
+  authentication_flows = toset(compact([
+    for client_key, client in local.clients : 
+    lookup(lookup(client, "authentication_flow", {}), "browser_flow", null)
+  ]))
+  
   # Flatten mappers for easier processing
   user_attribute_mappers = flatten([
     for client_key, client in local.clients : [
@@ -50,10 +56,12 @@ locals {
   ])
 }
 
-# Reference the MFA authentication flow
-data "keycloak_authentication_flow" "mfa_browser" {
+# Dynamically reference authentication flows from YAML configuration
+data "keycloak_authentication_flow" "flows" {
+  for_each = local.authentication_flows
+  
   realm_id = local.config.realm
-  alias    = "mfa-browser"
+  alias    = each.value
 }
 
 # Generate stable UUIDs for each PKCE client
@@ -107,11 +115,11 @@ resource "keycloak_openid_client" "pkce" {
   # Consent settings
   consent_required = each.value.consent_required
 
-  # Authentication Flow Binding - Use MFA flow (if configured in YAML)
+  # Authentication Flow Binding - Dynamically use flow from YAML
   dynamic "authentication_flow_binding_overrides" {
     for_each = lookup(each.value, "authentication_flow", null) != null ? [1] : []
     content {
-      browser_id = data.keycloak_authentication_flow.mfa_browser.id
+      browser_id = data.keycloak_authentication_flow.flows[each.value.authentication_flow.browser_flow].id
     }
   }
 }

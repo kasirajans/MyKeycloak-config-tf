@@ -9,7 +9,7 @@ editUsernameAllowed: true
 browserFlow: mfa-browser
 
 requiredActions:
-  - alias: webauthn-register
+  - alias: webauthn-register-passwordless
     enabled: true
     defaultAction: false
     priority: 10
