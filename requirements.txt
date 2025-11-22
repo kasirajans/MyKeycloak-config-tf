@@ -1,0 +1,5 @@
+# Python dependencies for keycloak_analyzer.py and related scripts
+# keycloak==2.8.0
+requests>=2.25.1
+PyYAML>=5.4
+rich>=13.0

@@ -1,3 +1,48 @@
+## Keycloak Terraform Resource Analyzer
+
+The script `keycloak_analyzer.py` provides comprehensive analysis of Terraform resources for Keycloak configurations. It summarizes, filters, and exports Keycloak infrastructure details.
+
+### How to Run
+
+Ensure you have installed all dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Run the analyzer script:
+
+```bash
+python keycloak_analyzer.py
+```
+
+Or, to use executable mode (if on Unix):
+
+```bash
+./keycloak_analyzer.py
+```
+
+### Features
+
+- High-level summary of all Terraform workspaces
+- Filter analysis by resource type:
+  - Users: `--filter users`
+  - Realms: `--filter realms`
+  - Clients: `--filter clients`
+  - Identity Providers: `--filter idp`
+  - Authentication Flows: `--filter auth`
+  - All: `--filter all`
+- Detailed analysis: `--detailed`
+- Export results to JSON: `--export report.json`
+- Disable colored output: `--no-color`
+
+### Example Usage
+
+```bash
+python keycloak_analyzer.py --filter users
+python keycloak_analyzer.py --detailed
+python keycloak_analyzer.py --export report.json
+```
 # Keycloak SSO Infrastructure as Code
 
 Complete Keycloak SSO setup using Terraform with multi-realm identity federation, PKCE authentication, and YAML-based configuration.
