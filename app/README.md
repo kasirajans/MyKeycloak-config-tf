@@ -6,20 +6,10 @@ This directory contains Terraform configurations for OIDC clients (applications)
 
 ```
 app/
-├── customer/                 # Customer realm clients
-│   ├── pkce/                # PKCE clients (public)
-│   ├── m2m/                 # Machine-to-machine (confidential)
-│   └── password-grant/      # Password grant clients
-│
-├── sp-customer/             # SP-Customer realm clients
-│   └── pkce/                # PKCE clients with broker
-│       ├── apps.yaml        # YAML: Client configuration
-│       └── main.tf          # Terraform: Create clients
-│
-└── idp-customer/            # IdP-Customer realm clients
-    └── pkce/                # PKCE broker clients
-        ├── apps.yaml        # YAML: Broker client config
-        └── main.tf          # Terraform: Create broker
+├── pkce/                # PKCE clients (public)
+├── m2m/                 # Machine-to-machine (confidential)
+└── password-grant/      # Password grant clients
+
 ```
 
 ## 🎯 Purpose
@@ -31,7 +21,17 @@ Creates OIDC clients (applications) in Keycloak realms:
 
 ## 🚀 Quick Start
 
-### Deploy IdP-Customer Broker Client
+### Deploy MFA Authentication Flow
+
+```bash
+cd ../config/Authentication/flow/MFA
+terraform init
+terraform apply -auto-approve
+
+# This creates the mfa-browser flow with username/password + WebAuthn
+```
+
+### Deploy IdP-Customer Broker Client with MFA
 
 ```bash
 cd idp-customer/pkce
@@ -55,27 +55,31 @@ terraform output clients
 
 ## ⚙️ YAML Configuration
 
-### PKCE Client Example
+### PKCE Client Example with MFA
 
 ```yaml
 # File: apps.yaml
-realm: sp-customer
+realm: idp-customer
 
 clients:
-  - client_id: mobile-web-app-broker
-    name: "Mobile/Web App Broker Client"
+  - client_id: sp-customer-broker-pkce
+    name: "SP Customer Broker (PKCE)"
     enabled: true
+    
+    # Authentication Flow Configuration for MFA
+    authentication_flow:
+      browser_flow: mfa-browser  # Uses username/password + WebAuthn
     
     pkce:
       challenge_method: S256  # SHA-256
     
     redirect_uris:
+      - http://localhost:8080/realms/sp-customer/broker/idp-customer-oidc/endpoint/*
       - http://localhost:5173/callback
-      - http://localhost:3000/callback
     
     web_origins:
-      - http://localhost:5173
-      - http://localhost:3000
+      - http://localhost:8080
+      - http://localhost:5173  # Frontend app for CORS
     
     token_settings:
       access_token_lifespan: 300      # 5 minutes
@@ -95,6 +99,16 @@ clients:
         name: firstName
         user_attribute: firstName
         claim_name: given_name
+      
+      - type: user_attribute
+        name: lastName
+        user_attribute: lastName
+        claim_name: family_name
+      
+      - type: user_attribute
+        name: username
+        user_attribute: username
+        claim_name: preferred_username
       
       - type: audience
         name: audience
@@ -185,18 +199,30 @@ terraform output configuration_summary
 
 ## 🔒 Security
 
-### PKCE Flow
+### MFA + PKCE Flow
 ```
 1. App generates code_verifier (random string)
 2. App generates code_challenge = SHA256(code_verifier)
 3. App sends code_challenge in auth request
 4. IdP stores code_challenge
-5. User authenticates
-6. App receives authorization code
-7. App sends code + code_verifier to token endpoint
-8. IdP verifies: SHA256(code_verifier) == code_challenge
-9. IdP issues tokens
+5. User enters username/password (first factor)
+6. User completes WebAuthn authentication (second factor)
+7. App receives authorization code
+8. App sends code + code_verifier to token endpoint
+9. IdP verifies: SHA256(code_verifier) == code_challenge
+10. IdP issues tokens
 ```
+
+### Multi-Factor Authentication (MFA)
+- **First Factor**: Username/Password (`auth-username-password-form`)
+- **Second Factor**: WebAuthn (`webauthn-authenticator`)
+- **Supported Devices**: Fingerprint, Face ID, Security Keys (YubiKey), Windows Hello
+- **Flow**: Custom `mfa-browser` flow enforces both factors
+
+### CORS Configuration
+Custom headers allowed for development:
+- Standard headers: `Accept`, `Authorization`, `Content-Type`, etc.
+- Custom header: `ngrok-skip-browser-warning` (for ngrok development)
 
 ### Token Settings
 - **Access Token**: 5 minutes (short-lived)
@@ -234,17 +260,47 @@ Result in JWT:
 
 ## 🛠️ Troubleshooting
 
-### "Invalid redirect_uri"
+### Authentication Issues
+
+#### "Invalid redirect_uri"
 **Solution**: Add the URI to `redirect_uris` in apps.yaml
 
-### "Missing code_challenge_method"
+#### "Missing code_challenge_method"
 **Solution**: Ensure PKCE is enabled with `challenge_method: S256`
 
-### "Invalid client"
+#### "Invalid client"
 **Solution**: Verify client UUID is correct in your app configuration
 
-### "Client not found"
+#### "Client not found"
 **Solution**: Check you deployed the client with `terraform apply`
+
+### MFA Issues
+
+#### Users don't see WebAuthn prompt
+**Solution**: Ensure users have registered WebAuthn credentials in Account Console
+
+#### "Security > Passwordless" not visible
+**Solution**: 
+1. Check Keycloak version (19+ required)
+2. Verify `webauthn-register` required action is enabled
+3. Use default Keycloak theme for testing
+
+#### MFA flow not triggering
+**Solution**: 
+1. Verify `mfa-browser` flow exists: `data.keycloak_authentication_flow.mfa_browser`
+2. Check client has `authentication_flow.browser_flow: mfa-browser` in YAML
+3. Ensure MFA flow is deployed before client
+
+### CORS Issues
+
+#### "Access-Control-Allow-Origin" error
+**Solution**: Add frontend URL to `web_origins` in apps.yaml
+
+#### "Request header field X not allowed"
+**Solution**: Custom headers are configured in `extra_config.cors.allowed.headers`
+
+#### CORS with ngrok development
+**Solution**: `ngrok-skip-browser-warning` header is pre-configured
 
 ## 🔗 Related
 
