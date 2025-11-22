@@ -66,6 +66,11 @@ resource "keycloak_openid_client" "pkce" {
 
   # Consent settings
   consent_required = each.value.consent_required
+
+  # Authentication Flow Binding - Use MFA flow
+  authentication_flow_binding_overrides {
+    browser_id = data.keycloak_authentication_flow.mfa_browser.id
+  }
 }
 
 # Create custom client scope for each PKCE client

@@ -17,6 +17,7 @@ provider "keycloak" {
   username  = var.keycloak_username
   password  = var.keycloak_password
   realm     = var.keycloak_admin_realm
+
 }
 
 # Read apps configuration from YAML file
@@ -47,6 +48,12 @@ locals {
       } if lookup(mapper, "type", "") == "audience"
     ]
   ])
+}
+
+# Reference the MFA authentication flow
+data "keycloak_authentication_flow" "mfa_browser" {
+  realm_id = local.config.realm
+  alias    = "mfa-browser"
 }
 
 # Generate stable UUIDs for each PKCE client
@@ -83,6 +90,12 @@ resource "keycloak_openid_client" "pkce" {
   valid_redirect_uris = each.value.redirect_uris
   web_origins         = each.value.web_origins
   
+  # Additional client attributes for CORS headers
+  extra_config = {
+    "access.token.signed.response.alg" = "RS256"
+    "cors.allowed.headers" = "Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With,ngrok-skip-browser-warning"
+  }
+  
   # Post-logout redirect URIs for Single Logout (SLO)
   valid_post_logout_redirect_uris = lookup(each.value, "valid_post_logout_redirect_uris", [])
 
@@ -93,6 +106,14 @@ resource "keycloak_openid_client" "pkce" {
 
   # Consent settings
   consent_required = each.value.consent_required
+
+  # Authentication Flow Binding - Use MFA flow (if configured in YAML)
+  dynamic "authentication_flow_binding_overrides" {
+    for_each = lookup(each.value, "authentication_flow", null) != null ? [1] : []
+    content {
+      browser_id = data.keycloak_authentication_flow.mfa_browser.id
+    }
+  }
 }
 
 # Create custom client scope for each PKCE client
