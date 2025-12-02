@@ -1,5 +1,5 @@
 # M2M Clients Output
-output "m2m_clients" {
+output "clients" {
   description = "All M2M (Client Credentials) clients configuration"
   value = {
     for key, client in keycloak_openid_client.m2m : key => {

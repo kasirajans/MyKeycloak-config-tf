@@ -1,6 +1,17 @@
+output "authentication_flows" {
+  description = "Map of all authentication flows with their IDs."
+  value = {
+    for key, flow in keycloak_authentication_flow.mfa_flows : key => {
+      id          = flow.id
+      alias       = flow.alias
+      description = flow.description
+    }
+  }
+}
+
 output "mfa_browser_flow_id" {
   description = "ID of the custom MFA browser authentication flow."
-  value       = keycloak_authentication_flow.mfa_browser.id
+  value       = keycloak_authentication_flow.mfa_flows["mfa-browser"].id
 }
 
 output "authentication_executions" {

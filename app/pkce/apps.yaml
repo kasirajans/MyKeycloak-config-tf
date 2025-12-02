@@ -27,7 +27,7 @@ clients:
     
     # Authentication Flow Configuration
     authentication_flow:
-      browser_flow: passwordless
+      browser_flow: mfa-browser
     
     # PKCE settings
     pkce:
@@ -39,6 +39,7 @@ clients:
       - http://localhost:8080/realms/sp-customer/broker/*/endpoint
       - http://localhost:8080/realms/sp-customer/broker/idp-customer-oidc/endpoint
       - http://localhost:5173/callback
+      - com.reactmobileclient://oauthredirect
     
     # CORS web origins - Keycloak server and frontend app
     web_origins:

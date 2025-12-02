@@ -1,5 +1,5 @@
 # Password Grant Clients Output
-output "password_grant_clients" {
+output "clients" {
   description = "All Password Grant (ROPC) clients configuration"
   value = {
     for key, client in keycloak_openid_client.password_grant : key => {

@@ -1,5 +1,5 @@
 # PKCE Clients Output
-output "pkce_clients" {
+output "clients" {
   description = "All PKCE (Authorization Code + PKCE) clients configuration"
   value = {
     for key, client in keycloak_openid_client.pkce : key => {

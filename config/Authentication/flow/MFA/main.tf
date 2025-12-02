@@ -43,11 +43,13 @@ locals {
 
 
 # Create passwordless authentication flow from YAML configuration
-resource "keycloak_authentication_flow" "mfa_browser" {
+resource "keycloak_authentication_flow" "mfa_flows" {
+  for_each = { for flow in local.mfa_config.authenticationFlows : flow.alias => flow }
+
   realm_id    = var.keycloak_realm_id
-  alias       = local.mfa_config.authenticationFlows[0].alias
-  description = local.mfa_config.authenticationFlows[0].description
-  provider_id = local.mfa_config.authenticationFlows[0].providerId
+  alias       = each.value.alias
+  description = each.value.description
+  provider_id = each.value.providerId
 }
 
 # Create authentication executions dynamically from YAML configuration
@@ -55,7 +57,7 @@ resource "keycloak_authentication_execution" "executions" {
   for_each = { for exec in local.executions : exec.execution_key => exec }
 
   realm_id          = var.keycloak_realm_id
-  parent_flow_alias = keycloak_authentication_flow.mfa_browser.alias
+  parent_flow_alias = keycloak_authentication_flow.mfa_flows[each.value.flow_alias].alias
   authenticator     = each.value.authenticator
   requirement       = each.value.requirement
 }

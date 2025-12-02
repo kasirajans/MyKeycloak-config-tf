@@ -25,9 +25,15 @@ authenticationFlows:
       - authenticator: webauthn-authenticator
         requirement: REQUIRED
         priority: 1
-
-clients:
-  - clientId: myapp
-    enabled: true
-    authenticationFlowOverrides:
-      browser: mfa-browser
+  
+  # Example: Add a new OTP-based flow
+  - alias: mfa-otp-browser
+    description: Browser flow with OTP (One-Time Password)
+    providerId: basic-flow
+    executions:
+      - authenticator: auth-username-password-form
+        requirement: REQUIRED
+        priority: 0
+      - authenticator: auth-otp-form
+        requirement: REQUIRED
+        priority: 1
