@@ -1,0 +1,288 @@
+# Custom Client Scopes Configuration
+# Client scopes are used to define common claims and protocol mappers
+# that can be shared across multiple clients
+
+realm: customer
+
+# Custom Client Scopes
+scopes:
+  # User profile scope with standard user claims
+  - name: user-profile
+    description: User profile information (name, email, etc.)
+    protocol: openid-connect
+
+    # Scope settings
+    include_in_token_scope: true
+    display_on_consent_screen: true
+    consent_screen_text: "User profile information"
+    gui_order: 1
+
+    # Protocol mappers for this scope
+    mappers:
+      - name: username
+        protocol: openid-connect
+        protocol_mapper: oidc-usermodel-property-mapper
+        config:
+          user.attribute: username
+          claim.name: preferred_username
+          jsonType.label: String
+          id.token.claim: true
+          access.token.claim: true
+          userinfo.token.claim: true
+
+      - name: email
+        protocol: openid-connect
+        protocol_mapper: oidc-usermodel-property-mapper
+        config:
+          user.attribute: email
+          claim.name: email
+          jsonType.label: String
+          id.token.claim: true
+          access.token.claim: true
+          userinfo.token.claim: true
+
+      - name: email-verified
+        protocol: openid-connect
+        protocol_mapper: oidc-usermodel-property-mapper
+        config:
+          user.attribute: emailVerified
+          claim.name: email_verified
+          jsonType.label: boolean
+          id.token.claim: true
+          access.token.claim: true
+          userinfo.token.claim: true
+
+      - name: full-name
+        protocol: openid-connect
+        protocol_mapper: oidc-full-name-mapper
+        config:
+          id.token.claim: true
+          access.token.claim: true
+          userinfo.token.claim: true
+
+  # User roles scope
+  - name: user-roles
+    description: User realm and client roles
+    protocol: openid-connect
+
+    include_in_token_scope: true
+    display_on_consent_screen: true
+    consent_screen_text: "User roles"
+    gui_order: 2
+
+    mappers:
+      - name: realm-roles
+        protocol: openid-connect
+        protocol_mapper: oidc-usermodel-realm-role-mapper
+        config:
+          claim.name: realm_access.roles
+          jsonType.label: String
+          multivalued: true
+          access.token.claim: true
+
+      - name: client-roles
+        protocol: openid-connect
+        protocol_mapper: oidc-usermodel-client-role-mapper
+        config:
+          claim.name: resource_access.${client_id}.roles
+          jsonType.label: String
+          multivalued: true
+          access.token.claim: true
+
+  # Custom organization scope
+  - name: organization
+    description: Organization and department information
+    protocol: openid-connect
+
+    include_in_token_scope: true
+    display_on_consent_screen: true
+    consent_screen_text: "Organization information"
+    gui_order: 3
+
+    mappers:
+      - name: organization-id
+        protocol: openid-connect
+        protocol_mapper: oidc-usermodel-attribute-mapper
+        config:
+          user.attribute: organization_id
+          claim.name: org_id
+          jsonType.label: String
+          id.token.claim: false
+          access.token.claim: true
+          userinfo.token.claim: true
+
+      - name: department
+        protocol: openid-connect
+        protocol_mapper: oidc-usermodel-attribute-mapper
+        config:
+          user.attribute: department
+          claim.name: department
+          jsonType.label: String
+          id.token.claim: false
+          access.token.claim: true
+          userinfo.token.claim: true
+
+      - name: organization-hardcoded
+        protocol: openid-connect
+        protocol_mapper: oidc-hardcoded-claim-mapper
+        config:
+          claim.name: tenant
+          claim.value: default-tenant
+          jsonType.label: String
+          id.token.claim: false
+          access.token.claim: true
+          userinfo.token.claim: false
+
+  # API permissions scope
+  - name: api-permissions
+    description: API access permissions
+    protocol: openid-connect
+
+    include_in_token_scope: true
+    display_on_consent_screen: true
+    consent_screen_text: "API access permissions"
+    gui_order: 4
+
+    mappers:
+      - name: api-scopes
+        protocol: openid-connect
+        protocol_mapper: oidc-audience-mapper
+        config:
+          included.custom.audience: api-backend
+          id.token.claim: false
+          access.token.claim: true
+
+      - name: permissions-claim
+        protocol: openid-connect
+        protocol_mapper: oidc-hardcoded-claim-mapper
+        config:
+          claim.name: permissions
+          claim.value: '["read:users", "write:users"]'
+          jsonType.label: JSON
+          id.token.claim: false
+          access.token.claim: true
+          userinfo.token.claim: false
+
+  # Audit scope (minimal consent display)
+  - name: audit-info
+    description: Audit and tracking information
+    protocol: openid-connect
+
+    include_in_token_scope: true
+    display_on_consent_screen: false  # Don't show on consent screen
+    gui_order: 5
+
+    mappers:
+      - name: issued-at
+        protocol: openid-connect
+        protocol_mapper: oidc-hardcoded-claim-mapper
+        config:
+          claim.name: iat
+          claim.value: "${now}"
+          jsonType.label: long
+          id.token.claim: true
+          access.token.claim: true
+          userinfo.token.claim: false
+
+      - name: session-id
+        protocol: openid-connect
+        protocol_mapper: oidc-usersessionmodel-note-mapper
+        config:
+          user.session.note: session_id
+          claim.name: sid
+          jsonType.label: String
+          id.token.claim: true
+          access.token.claim: true
+          userinfo.token.claim: false
+
+  # Okta API access scope for AIAgent
+  - name: okta-api-access
+    description: Okta API access for user management operations
+    protocol: openid-connect
+
+    include_in_token_scope: true
+    display_on_consent_screen: true
+    consent_screen_text: "Access Okta API for user management"
+    gui_order: 6
+
+    mappers:
+      # Okta API audience
+      - name: okta-api-audience
+        protocol: openid-connect
+        protocol_mapper: oidc-audience-mapper
+        config:
+          included.custom.audience: okta-api
+          id.token.claim: false
+          access.token.claim: true
+
+      # Okta API scopes/permissions
+      - name: okta-api-scopes
+        protocol: openid-connect
+        protocol_mapper: oidc-hardcoded-claim-mapper
+        config:
+          claim.name: okta_scopes
+          claim.value: '["okta.users.read", "okta.users.manage", "okta.groups.read", "okta.groups.manage"]'
+          jsonType.label: JSON
+          id.token.claim: false
+          access.token.claim: true
+          userinfo.token.claim: false
+
+      # AIAgent identifier
+      - name: agent-identifier
+        protocol: openid-connect
+        protocol_mapper: oidc-hardcoded-claim-mapper
+        config:
+          claim.name: agent_id
+          claim.value: ai-agent-okta-integration
+          jsonType.label: String
+          id.token.claim: false
+          access.token.claim: true
+          userinfo.token.claim: false
+
+      # Okta domain/org
+      - name: okta-domain
+        protocol: openid-connect
+        protocol_mapper: oidc-hardcoded-claim-mapper
+        config:
+          claim.name: okta_domain
+          claim.value: your-okta-domain.okta.com
+          jsonType.label: String
+          id.token.claim: false
+          access.token.claim: true
+          userinfo.token.claim: false
+
+      # Integration type
+      - name: integration-type
+        protocol: openid-connect
+        protocol_mapper: oidc-hardcoded-claim-mapper
+        config:
+          claim.name: integration_type
+          claim.value: okta_user_management
+          jsonType.label: String
+          id.token.claim: false
+          access.token.claim: true
+          userinfo.token.claim: false
+
+      # API version
+      - name: okta-api-version
+        protocol: openid-connect
+        protocol_mapper: oidc-hardcoded-claim-mapper
+        config:
+          claim.name: okta_api_version
+          claim.value: v1
+          jsonType.label: String
+          id.token.claim: false
+          access.token.claim: true
+          userinfo.token.claim: false
+
+      # Rate limit tier (for tracking)
+      - name: rate-limit-tier
+        protocol: openid-connect
+        protocol_mapper: oidc-hardcoded-claim-mapper
+        config:
+          claim.name: rate_limit_tier
+          claim.value: standard
+          jsonType.label: String
+          id.token.claim: false
+          access.token.claim: true
+          userinfo.token.claim: false

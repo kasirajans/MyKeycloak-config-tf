@@ -8,32 +8,79 @@ clients:
     name: Backend Service (M2M)
     description: Confidential client for backend service communication
     enabled: true
-    
+
     # Token settings (in seconds)
     token_settings:
       access_token_lifespan: 3600  # 1 hour
-    
+
     # Service account roles (optional)
     service_account_roles: []
       # - view-users
       # - manage-users
 
+    # Client scopes (from scopes module)
+    default_scopes:
+      - user-profile
+      - organization
+    optional_scopes:
+      - api-permissions
+
   - client_id: api-gateway-m2m
     name: API Gateway (M2M)
     description: Confidential client for API gateway service
     enabled: true
-    
+
+    # Token exchange capability - this client can exchange user tokens
+    capabilities:
+      token_exchange_enabled: true
+
     token_settings:
       access_token_lifespan: 1800  # 30 minutes
-    
+
     service_account_roles: []
+
+    # Client scopes (from scopes module)
+    default_scopes:
+      - user-profile
+      - user-roles
+      - organization
+      - api-permissions
+    optional_scopes:
+      - audit-info
 
   - client_id: microservice-a-m2m
     name: Microservice A (M2M)
     description: Confidential client for microservice A
     enabled: true
-    
+
     token_settings:
       access_token_lifespan: 3600  # 1 hour
-    
+
     service_account_roles: []
+
+    # Client scopes (from scopes module)
+    default_scopes:
+      - user-profile
+      - organization
+
+  # AIAgent client for Okta API integration
+  - client_id: aiagent-okta-m2m
+    name: AIAgent - Okta Integration (M2M)
+    description: AIAgent service account for Okta API user management
+    enabled: true
+
+    token_settings:
+      access_token_lifespan: 1800  # 30 minutes - shorter for security
+
+    service_account_roles: []
+      # Add realm roles if needed for authorization
+      # - okta-admin
+      # - user-manager
+
+    # Client scopes (from scopes module)
+    default_scopes:
+      - okta-api-access  # Primary scope for Okta API
+      - user-profile      # User context if needed
+      - audit-info        # For tracking and logging
+    optional_scopes:
+      - organization      # Optional org context
