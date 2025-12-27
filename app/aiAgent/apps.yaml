@@ -1,0 +1,26 @@
+# AIAgent Clients Configuration
+# Standardized M2M clients for AI Agents with client credentials grant
+
+realm: AIAgent
+
+# Client naming convention: aiagent_<ServiceType>_<AppName>
+# Description format: <AppOwner>;<TeamName>;<TeamEmailID>
+# All other settings are hardcoded for consistency
+# Required fields: app_name, service_type, owner, team, email, scope
+# Allowed service_type values: MCP (more types can be added in the future)
+
+clients:
+  - app_name: oktaAPI
+    service_type: MCP
+    owner: Kraaj 
+    team: Identity Platform
+    email: identity-platform@company.com
+    scope: okta-api-access
+
+  # Example: Add more AI agents
+  # - app_name: SalesforceIntegration
+  #   service_type: MCP
+  #   owner: Jane Smith
+  #   team: CRM Team
+  #   email: crm-team@company.com
+  #   scope: salesforce-api-access

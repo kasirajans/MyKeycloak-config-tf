@@ -64,11 +64,11 @@ resource "keycloak_openid_user_property_protocol_mapper" "user_property" {
   realm_id            = local.config.realm
   client_scope_id     = keycloak_openid_client_scope.scope[each.value.scope_name].id
   name                = each.value.mapper_name
-  claim_name          = each.value.mapper.config.claim.name
-  user_property       = each.value.mapper.config.user.attribute
-  add_to_id_token     = try(each.value.mapper.config.id.token.claim, true)
-  add_to_access_token = try(each.value.mapper.config.access.token.claim, true)
-  add_to_userinfo     = try(each.value.mapper.config.userinfo.token.claim, true)
+  claim_name          = each.value.mapper.config["claim.name"]
+  user_property       = each.value.mapper.config["user.attribute"]
+  add_to_id_token     = try(each.value.mapper.config["id.token.claim"], true)
+  add_to_access_token = try(each.value.mapper.config["access.token.claim"], true)
+  add_to_userinfo     = try(each.value.mapper.config["userinfo.token.claim"], true)
 }
 
 # User Attribute Mappers (custom user attributes)
@@ -81,11 +81,11 @@ resource "keycloak_openid_user_attribute_protocol_mapper" "user_attribute" {
   realm_id            = local.config.realm
   client_scope_id     = keycloak_openid_client_scope.scope[each.value.scope_name].id
   name                = each.value.mapper_name
-  claim_name          = each.value.mapper.config.claim.name
-  user_attribute      = each.value.mapper.config.user.attribute
-  add_to_id_token     = try(each.value.mapper.config.id.token.claim, true)
-  add_to_access_token = try(each.value.mapper.config.access.token.claim, true)
-  add_to_userinfo     = try(each.value.mapper.config.userinfo.token.claim, true)
+  claim_name          = each.value.mapper.config["claim.name"]
+  user_attribute      = each.value.mapper.config["user.attribute"]
+  add_to_id_token     = try(each.value.mapper.config["id.token.claim"], true)
+  add_to_access_token = try(each.value.mapper.config["access.token.claim"], true)
+  add_to_userinfo     = try(each.value.mapper.config["userinfo.token.claim"], true)
 }
 
 # Full Name Mapper
@@ -98,9 +98,9 @@ resource "keycloak_openid_full_name_protocol_mapper" "full_name" {
   realm_id            = local.config.realm
   client_scope_id     = keycloak_openid_client_scope.scope[each.value.scope_name].id
   name                = each.value.mapper_name
-  add_to_id_token     = try(each.value.mapper.config.id.token.claim, true)
-  add_to_access_token = try(each.value.mapper.config.access.token.claim, true)
-  add_to_userinfo     = try(each.value.mapper.config.userinfo.token.claim, true)
+  add_to_id_token     = try(each.value.mapper.config["id.token.claim"], true)
+  add_to_access_token = try(each.value.mapper.config["access.token.claim"], true)
+  add_to_userinfo     = try(each.value.mapper.config["userinfo.token.claim"], true)
 }
 
 # Hardcoded Claim Mappers
@@ -113,12 +113,12 @@ resource "keycloak_openid_hardcoded_claim_protocol_mapper" "hardcoded" {
   realm_id            = local.config.realm
   client_scope_id     = keycloak_openid_client_scope.scope[each.value.scope_name].id
   name                = each.value.mapper_name
-  claim_name          = each.value.mapper.config.claim.name
-  claim_value         = each.value.mapper.config.claim.value
-  claim_value_type    = try(each.value.mapper.config.jsonType.label, "String")
-  add_to_id_token     = try(each.value.mapper.config.id.token.claim, true)
-  add_to_access_token = try(each.value.mapper.config.access.token.claim, true)
-  add_to_userinfo     = try(each.value.mapper.config.userinfo.token.claim, false)
+  claim_name          = each.value.mapper.config["claim.name"]
+  claim_value         = each.value.mapper.config["claim.value"]
+  claim_value_type    = try(each.value.mapper.config["jsonType.label"], "String")
+  add_to_id_token     = try(each.value.mapper.config["id.token.claim"], true)
+  add_to_access_token = try(each.value.mapper.config["access.token.claim"], true)
+  add_to_userinfo     = try(each.value.mapper.config["userinfo.token.claim"], false)
 }
 
 # User Realm Role Mappers
@@ -131,11 +131,11 @@ resource "keycloak_openid_user_realm_role_protocol_mapper" "realm_roles" {
   realm_id            = local.config.realm
   client_scope_id     = keycloak_openid_client_scope.scope[each.value.scope_name].id
   name                = each.value.mapper_name
-  claim_name          = each.value.mapper.config.claim.name
-  multivalued         = try(each.value.mapper.config.multivalued, true)
-  add_to_id_token     = try(each.value.mapper.config.id.token.claim, false)
-  add_to_access_token = try(each.value.mapper.config.access.token.claim, true)
-  add_to_userinfo     = try(each.value.mapper.config.userinfo.token.claim, false)
+  claim_name          = each.value.mapper.config["claim.name"]
+  multivalued         = try(each.value.mapper.config["multivalued"], true)
+  add_to_id_token     = try(each.value.mapper.config["id.token.claim"], false)
+  add_to_access_token = try(each.value.mapper.config["access.token.claim"], true)
+  add_to_userinfo     = try(each.value.mapper.config["userinfo.token.claim"], false)
 }
 
 # User Client Role Mappers
@@ -148,11 +148,11 @@ resource "keycloak_openid_user_client_role_protocol_mapper" "client_roles" {
   realm_id            = local.config.realm
   client_scope_id     = keycloak_openid_client_scope.scope[each.value.scope_name].id
   name                = each.value.mapper_name
-  claim_name          = each.value.mapper.config.claim.name
-  multivalued         = try(each.value.mapper.config.multivalued, true)
-  add_to_id_token     = try(each.value.mapper.config.id.token.claim, false)
-  add_to_access_token = try(each.value.mapper.config.access.token.claim, true)
-  add_to_userinfo     = try(each.value.mapper.config.userinfo.token.claim, false)
+  claim_name          = each.value.mapper.config["claim.name"]
+  multivalued         = try(each.value.mapper.config["multivalued"], true)
+  add_to_id_token     = try(each.value.mapper.config["id.token.claim"], false)
+  add_to_access_token = try(each.value.mapper.config["access.token.claim"], true)
+  add_to_userinfo     = try(each.value.mapper.config["userinfo.token.claim"], false)
 
   # Note: client_id_for_role_mappings can be set if needed
   # client_id_for_role_mappings = "some-client-id"
@@ -169,9 +169,9 @@ resource "keycloak_openid_audience_protocol_mapper" "audience" {
   client_scope_id = keycloak_openid_client_scope.scope[each.value.scope_name].id
   name            = each.value.mapper_name
 
-  included_custom_audience = try(each.value.mapper.config.included.custom.audience, "")
-  add_to_id_token          = try(each.value.mapper.config.id.token.claim, false)
-  add_to_access_token      = try(each.value.mapper.config.access.token.claim, true)
+  included_custom_audience = try(each.value.mapper.config["included.custom.audience"], "")
+  add_to_id_token          = try(each.value.mapper.config["id.token.claim"], false)
+  add_to_access_token      = try(each.value.mapper.config["access.token.claim"], true)
 }
 
 # User Session Note Mappers
@@ -184,9 +184,9 @@ resource "keycloak_openid_user_session_note_protocol_mapper" "session_note" {
   realm_id            = local.config.realm
   client_scope_id     = keycloak_openid_client_scope.scope[each.value.scope_name].id
   name                = each.value.mapper_name
-  claim_name          = each.value.mapper.config.claim.name
-  session_note        = each.value.mapper.config.user.session.note
-  claim_value_type    = try(each.value.mapper.config.jsonType.label, "String")
-  add_to_id_token     = try(each.value.mapper.config.id.token.claim, true)
-  add_to_access_token = try(each.value.mapper.config.access.token.claim, true)
+  claim_name          = each.value.mapper.config["claim.name"]
+  session_note        = each.value.mapper.config["user.session.note"]
+  claim_value_type    = try(each.value.mapper.config["jsonType.label"], "String")
+  add_to_id_token     = try(each.value.mapper.config["id.token.claim"], true)
+  add_to_access_token = try(each.value.mapper.config["access.token.claim"], true)
 }

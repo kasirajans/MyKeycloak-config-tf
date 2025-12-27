@@ -1,0 +1,46 @@
+###
+# AIAgent Client Credentials Flow Test
+# Uses VS Code REST Client extension
+# Make sure to populate the variables below with credentials from Terraform output
+###
+
+# Variables - Update these with your actual values from Terraform output
+@KEYCLOAK_URL = {{$dotenv KEYCLOAK_URL}}
+@REALM = {{$dotenv REALM}}
+@CLIENT_ID = {{$dotenv CLIENT_ID}}
+@CLIENT_SECRET = {{$dotenv CLIENT_SECRET}}
+@SCOPE = {{$dotenv SCOPE}}
+
+###
+# Get Access Token
+# @name getToken
+
+POST {{KEYCLOAK_URL}}/realms/{{REALM}}/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials
+&client_id={{CLIENT_ID}}
+&client_secret={{CLIENT_SECRET}}
+&scope={{SCOPE}}
+
+###
+# Extract access token from response
+@accessToken = {{getToken.response.body.$.access_token}}
+
+###
+# Verify token (introspection)
+POST {{KEYCLOAK_URL}}/realms/{{REALM}}/protocol/openid-connect/token/introspect
+Content-Type: application/x-www-form-urlencoded
+
+token={{accessToken}}
+&client_id={{CLIENT_ID}}
+&client_secret={{CLIENT_SECRET}}
+
+###
+# Alternative: cURL command for terminal testing
+# curl -X POST "{{KEYCLOAK_URL}}/realms/{{REALM}}/protocol/openid-connect/token" \
+#   -H "Content-Type: application/x-www-form-urlencoded" \
+#   -d "grant_type=client_credentials" \
+#   -d "client_id={{CLIENT_ID}}" \
+#   -d "client_secret={{CLIENT_SECRET}}" \
+#   -d "scope={{SCOPE}}"

@@ -159,25 +159,25 @@ resource "keycloak_openid_audience_protocol_mapper" "m2m_audience" {
 # ============================================================================
 
 # Attach default scopes to clients
-resource "keycloak_openid_client_default_scopes" "default" {
-  for_each = local.clients_with_default_scopes
+# resource "keycloak_openid_client_default_scopes" "default" {
+#   for_each = local.clients_with_default_scopes
 
-  realm_id  = local.config.realm
-  client_id = keycloak_openid_client.m2m[each.key].id
+#   realm_id  = local.config.realm
+#   client_id = keycloak_openid_client.m2m[each.key].id
 
-  default_scopes = concat(
-    [
-      "profile",
-      "email",
-      "roles",
-      "web-origins"
-    ],
-    [
-      for scope_name in try(each.value.default_scopes, []) :
-      data.keycloak_openid_client_scope.custom_scopes[scope_name].name
-    ]
-  )
-}
+#   default_scopes = concat(
+#     [
+#       "profile",
+#       "email",
+#       "roles",
+#       "web-origins"
+#     ],
+#     [
+#       for scope_name in try(each.value.default_scopes, []) :
+#       data.keycloak_openid_client_scope.custom_scopes[scope_name].name
+#     ]
+#   )
+# }
 
 # Attach optional scopes to clients
 resource "keycloak_openid_client_optional_scopes" "optional" {

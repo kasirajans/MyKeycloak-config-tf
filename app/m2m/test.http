@@ -1,0 +1,8 @@
+
+
+
+curl -X POST "https://keycloak/realms/AIAgent/protocol/openid-connect/token" \
+  -d "grant_type=client_credentials" \
+  -d "client_id=<uuid>" \
+  -d "client_secret=<secret>" \
+  -d "scope=okta-api-access"  # Required because it's optional

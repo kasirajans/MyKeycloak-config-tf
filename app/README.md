@@ -1,306 +1,206 @@
 # Application Clients Configuration
 
-This directory contains Terraform configurations for OIDC clients (applications) in all realms.
+This directory contains Terraform modules for managing OAuth 2.0 / OIDC clients in Keycloak.
 
-## 📁 Structure
+## 📁 Module Structure
 
 ```
 app/
-├── pkce/                # PKCE clients (public)
-├── m2m/                 # Machine-to-machine (confidential)
-└── password-grant/      # Password grant clients
-
+├── scopes/              # Custom client scopes and protocol mappers
+├── aiAgent/             # Standardized AI agent clients (opinionated M2M)
+├── m2m/                 # Machine-to-machine clients (flexible)
+├── pkce/                # PKCE clients (public) for web/mobile apps
+├── password-grant/      # Password grant clients (legacy/deprecated)
+└── README.md            # This file (overview)
 ```
 
-## 🎯 Purpose
+**Each module has its own detailed README:**
+- [scopes/README.md](scopes/README.md) - Client scopes and protocol mappers
+- [aiAgent/README.md](aiAgent/README.md) - Standardized AI agent clients
+- [m2m/README.md](m2m/README.md) - Flexible M2M/service account clients
+- [pkce/README.md](pkce/README.md) - PKCE clients for web/mobile
+- [password-grant/README.md](password-grant/README.md) - Password grant (deprecated)
 
-Creates OIDC clients (applications) in Keycloak realms:
-- **PKCE Clients**: Public clients for web/mobile apps (no client secret)
-- **M2M Clients**: Service-to-service authentication (confidential)
-- **Broker Clients**: Clients used by SP realms to federate authentication
+## 🎯 Quick Module Selection
 
-## 🚀 Quick Start
+### Choose Your Client Type
 
-### Deploy MFA Authentication Flow
+| I need... | Use Module | Documentation |
+|-----------|-----------|---------------|
+| **AI agent** with standardized config | `aiAgent/` | [AIAgent README](aiAgent/README.md) |
+| **Web/Mobile app** (React, Angular, mobile) | `pkce/` | [PKCE README](pkce/README.md) |
+| **Service-to-service** auth (flexible config) | `m2m/` | [M2M README](m2m/README.md) |
+| **Custom scopes/claims** for clients | `scopes/` | [Scopes README](scopes/README.md) |
+| **Legacy app** (not recommended) | `password-grant/` | [Password Grant README](password-grant/README.md) |
+
+## 🚀 Common Workflows
+
+### Workflow 1: Web Application with MFA
+
+For a React/Angular/Vue application with multi-factor authentication:
+
+1. **Deploy MFA flow** (optional):
+   ```bash
+   cd ../config/Authentication/flow/MFA
+   terraform apply -auto-approve
+   ```
+
+2. **Deploy PKCE client**:
+   ```bash
+   cd ../../../app/pkce
+   terraform apply -auto-approve
+   terraform output -json pkce_clients | jq '.["my-app"]'
+   ```
+
+3. **Implement in your app** - See [pkce/README.md](pkce/README.md#-pkce-flow)
+
+### Workflow 2: Service Account (M2M) with Custom Scopes
+
+For backend services that need custom claims/scopes:
+
+1. **Deploy custom scopes**:
+   ```bash
+   cd scopes
+   terraform apply -auto-approve
+   ```
+
+2. **Deploy M2M client**:
+   ```bash
+   cd ../m2m
+   terraform apply -auto-approve
+   ```
+
+3. **Get credentials**:
+   ```bash
+   CLIENT_ID=$(terraform output -json m2m_clients | jq -r '.["my-service"].client_id')
+   CLIENT_SECRET=$(terraform output -json m2m_client_secrets | jq -r '.["my-service"]')
+   ```
+
+4. **Get tokens** - See [m2m/README.md](m2m/README.md#-getting-access-tokens)
+
+### Workflow 3: Realm Federation (Broker)
+
+For SP realm federating to IdP realm:
+
+1. **Deploy broker client in IdP**:
+   ```bash
+   cd pkce  # Broker uses PKCE
+   # Edit apps.yaml with broker configuration
+   terraform apply -auto-approve
+   terraform output -json pkce_clients | jq -r '.["sp-broker"].client_id'
+   ```
+
+2. **Configure IdP in SP** - See identity provider configuration docs
+
+## 📖 Module Documentation
+
+For detailed information about each module, see their individual READMEs:
+
+### [Scopes Module](scopes/README.md)
+- Custom client scopes and protocol mappers
+- Supported mapper types (audience, hardcoded claims, user attributes, etc.)
+- Scope configuration examples
+- **Start here** if you need custom claims in tokens
+
+### [AIAgent Module](aiAgent/README.md)
+- Standardized M2M clients for AI agents
+- Enforced naming: `aiagent_<AppName>`
+- Structured metadata: `<Owner>;<Team>;<Email>`
+- Hardcoded security settings (30-min tokens, Client Credentials only)
+- Minimal YAML configuration (4 fields only)
+- **Start here** for AI agent service accounts
+
+### [M2M Module](m2m/README.md)
+- Flexible machine-to-machine clients
+- Client Credentials grant flow
+- Customizable token lifespans, scopes, and settings
+- Auto-generated secure secrets (48 chars)
+- **Start here** for general backend service authentication
+
+### [PKCE Module](pkce/README.md)
+- Public clients for web/mobile applications
+- Authorization Code + PKCE flow
+- Multi-factor authentication (MFA) support
+- CORS configuration
+- Protocol mappers (user attributes, audience)
+- **Start here** for frontend applications
+
+### [Password Grant Module](password-grant/README.md)
+- Legacy password grant flow (deprecated)
+- Migration guide to PKCE or M2M
+- **Avoid for new applications**
+
+## 🔍 Quick Reference
+
+### Terraform Outputs
+
+Each module has its own outputs:
 
 ```bash
-cd ../config/Authentication/flow/MFA
-terraform init
-terraform apply -auto-approve
+# PKCE clients
+cd pkce && terraform output pkce_clients
 
-# This creates the mfa-browser flow with username/password + WebAuthn
+# AIAgent clients
+cd aiAgent && terraform output aiagent_summary           # Non-sensitive
+cd aiAgent && terraform output aiagent_clients           # Sensitive
+cd aiAgent && terraform output aiagent_client_secrets    # Sensitive
+
+# M2M clients
+cd m2m && terraform output m2m_clients
+cd m2m && terraform output m2m_client_secrets  # Sensitive
+
+# Scopes
+cd scopes && terraform output scopes
+
+# Password grant clients
+cd password-grant && terraform output password_grant_clients
 ```
 
-### Deploy IdP-Customer Broker Client with MFA
+**See each module's README for detailed output examples and usage.**
 
+## 🔑 Client Type Comparison
+
+| Feature | PKCE | M2M | Password Grant |
+|---------|------|-----|----------------|
+| **Access Type** | PUBLIC | CONFIDENTIAL | PUBLIC or CONFIDENTIAL |
+| **OAuth Flow** | Authorization Code + PKCE | Client Credentials | Resource Owner Password |
+| **Client Secret** | ❌ No | ✅ Yes (48-char) | Optional |
+| **Use Case** | Web/mobile apps | Service-to-service | Legacy apps |
+| **Security** | ✅ High | ✅ High | ❌ Low (deprecated) |
+| **MFA Support** | ✅ Yes | ❌ N/A | ❌ Difficult |
+| **User Context** | ✅ Yes | ❌ No | ✅ Yes |
+| **Recommended** | ✅ Yes | ✅ Yes | ❌ No |
+
+**Detailed information:** See each module's README for OAuth flows, security considerations, and implementation examples.
+
+## 🛠️ Common Issues
+
+### "Output 'clients' not found"
+
+Each module has its own output names:
+- `pkce_clients` (not `clients`)
+- `m2m_clients` (not `clients`)
+- `scopes` (not `client_scopes`)
+
+### "Scope not found"
+
+Deploy scopes before clients:
 ```bash
-cd idp-customer/pkce
-terraform init
-terraform apply -auto-approve
-
-# Get the client UUID (needed for IdP configuration)
-terraform output -json clients | jq -r '.["sp-customer-broker-pkce"].client_id'
+cd scopes && terraform apply
+cd ../m2m && terraform apply  # Now can reference scopes
 ```
 
-### Deploy SP-Customer PKCE Client
+### "Invalid redirect_uri" / CORS errors
 
-```bash
-cd sp-customer/pkce
-terraform init
-terraform apply -auto-approve
+See [pkce/README.md](pkce/README.md#-troubleshooting) for PKCE-specific issues.
 
-# Get client UUID for your application
-terraform output clients
-```
+### Module-Specific Troubleshooting
 
-## ⚙️ YAML Configuration
-
-### PKCE Client Example with MFA
-
-```yaml
-# File: apps.yaml
-realm: idp-customer
-
-clients:
-  - client_id: sp-customer-broker-pkce
-    name: "SP Customer Broker (PKCE)"
-    enabled: true
-    
-    # Authentication Flow Configuration for MFA
-    authentication_flow:
-      browser_flow: mfa-browser  # Uses username/password + WebAuthn
-    
-    pkce:
-      challenge_method: S256  # SHA-256
-    
-    redirect_uris:
-      - http://localhost:8080/realms/sp-customer/broker/idp-customer-oidc/endpoint/*
-      - http://localhost:5173/callback
-    
-    web_origins:
-      - http://localhost:8080
-      - http://localhost:5173  # Frontend app for CORS
-    
-    token_settings:
-      access_token_lifespan: 300      # 5 minutes
-      session_idle_timeout: 1800      # 30 minutes
-      session_max_lifespan: 36000     # 10 hours
-    
-    consent_required: false
-    
-    # Protocol Mappers
-    mappers:
-      - type: user_attribute
-        name: email
-        user_attribute: email
-        claim_name: email
-      
-      - type: user_attribute
-        name: firstName
-        user_attribute: firstName
-        claim_name: given_name
-      
-      - type: user_attribute
-        name: lastName
-        user_attribute: lastName
-        claim_name: family_name
-      
-      - type: user_attribute
-        name: username
-        user_attribute: username
-        claim_name: preferred_username
-      
-      - type: audience
-        name: audience
-        audience: self  # Use client's own UUID
-```
-
-## 📝 Adding Clients
-
-### Add a New PKCE Client
-
-1. Edit `apps.yaml`:
-```yaml
-clients:
-  - client_id: my-new-app
-    name: "My New Application"
-    enabled: true
-    pkce:
-      challenge_method: S256
-    redirect_uris:
-      - http://localhost:4200/callback
-    web_origins:
-      - http://localhost:4200
-    token_settings:
-      access_token_lifespan: 300
-      session_idle_timeout: 1800
-      session_max_lifespan: 36000
-    consent_required: false
-    mappers:
-      - type: audience
-        name: audience
-        audience: self
-```
-
-2. Apply changes:
-```bash
-terraform apply
-```
-
-3. Get client UUID:
-```bash
-terraform output -json clients | jq -r '.["my-new-app"].client_id'
-```
-
-## 🔍 Viewing Configuration
-
-### Get All Clients
-```bash
-terraform output clients
-```
-
-### Get Specific Client UUID
-```bash
-terraform output -json clients | jq -r '.["client-id"].client_id'
-```
-
-### Get OIDC Endpoints
-```bash
-terraform output endpoints
-```
-
-### Get Configuration Summary
-```bash
-terraform output configuration_summary
-```
-
-## 🔑 Client Types
-
-### PKCE Clients (PUBLIC)
-- **Access Type**: PUBLIC
-- **Use Case**: Web apps, SPAs, mobile apps
-- **Client Secret**: ❌ Not needed
-- **PKCE**: ✅ Required
-- **Example**: React app, Angular app, mobile app
-
-### M2M Clients (CONFIDENTIAL)
-- **Access Type**: CONFIDENTIAL
-- **Use Case**: Service-to-service communication
-- **Client Secret**: ✅ Required
-- **PKCE**: ❌ Not used
-- **Example**: Backend service calling API
-
-### Broker Clients (PKCE)
-- **Access Type**: PUBLIC
-- **Use Case**: SP realm federating to IdP realm
-- **Client Secret**: ❌ Not needed
-- **PKCE**: ✅ Required
-- **Example**: SP-Customer → IdP-Customer
-
-## 🔒 Security
-
-### MFA + PKCE Flow
-```
-1. App generates code_verifier (random string)
-2. App generates code_challenge = SHA256(code_verifier)
-3. App sends code_challenge in auth request
-4. IdP stores code_challenge
-5. User enters username/password (first factor)
-6. User completes WebAuthn authentication (second factor)
-7. App receives authorization code
-8. App sends code + code_verifier to token endpoint
-9. IdP verifies: SHA256(code_verifier) == code_challenge
-10. IdP issues tokens
-```
-
-### Multi-Factor Authentication (MFA)
-- **First Factor**: Username/Password (`auth-username-password-form`)
-- **Second Factor**: WebAuthn (`webauthn-authenticator`)
-- **Supported Devices**: Fingerprint, Face ID, Security Keys (YubiKey), Windows Hello
-- **Flow**: Custom `mfa-browser` flow enforces both factors
-
-### CORS Configuration
-Custom headers allowed for development:
-- Standard headers: `Accept`, `Authorization`, `Content-Type`, etc.
-- Custom header: `ngrok-skip-browser-warning` (for ngrok development)
-
-### Token Settings
-- **Access Token**: 5 minutes (short-lived)
-- **Session Idle**: 30 minutes (user inactivity)
-- **Session Max**: 10 hours (absolute maximum)
-
-## 📊 Protocol Mappers
-
-### User Attribute Mapper
-Maps user attributes to JWT claims:
-```yaml
-- type: user_attribute
-  name: email
-  user_attribute: email      # Source from user profile
-  claim_name: email          # Target claim in JWT
-```
-
-### Audience Mapper
-Adds audience claim to token:
-```yaml
-- type: audience
-  name: audience
-  audience: self  # Use "self" for client's own UUID
-```
-
-Result in JWT:
-```json
-{
-  "aud": "501c3036-83aa-96f9-efd9-94d853f2be8e",
-  "email": "john.doe@idp-customer.com",
-  "given_name": "John",
-  "family_name": "Doe"
-}
-```
-
-## 🛠️ Troubleshooting
-
-### Authentication Issues
-
-#### "Invalid redirect_uri"
-**Solution**: Add the URI to `redirect_uris` in apps.yaml
-
-#### "Missing code_challenge_method"
-**Solution**: Ensure PKCE is enabled with `challenge_method: S256`
-
-#### "Invalid client"
-**Solution**: Verify client UUID is correct in your app configuration
-
-#### "Client not found"
-**Solution**: Check you deployed the client with `terraform apply`
-
-### MFA Issues
-
-#### Users don't see WebAuthn prompt
-**Solution**: Ensure users have registered WebAuthn credentials in Account Console
-
-#### "Security > Passwordless" not visible
-**Solution**: 
-1. Check Keycloak version (19+ required)
-2. Verify `webauthn-register` required action is enabled
-3. Use default Keycloak theme for testing
-
-#### MFA flow not triggering
-**Solution**: 
-1. Verify `mfa-browser` flow exists: `data.keycloak_authentication_flow.mfa_browser`
-2. Check client has `authentication_flow.browser_flow: mfa-browser` in YAML
-3. Ensure MFA flow is deployed before client
-
-### CORS Issues
-
-#### "Access-Control-Allow-Origin" error
-**Solution**: Add frontend URL to `web_origins` in apps.yaml
-
-#### "Request header field X not allowed"
-**Solution**: Custom headers are configured in `extra_config.cors.allowed.headers`
-
-#### CORS with ngrok development
-**Solution**: `ngrok-skip-browser-warning` header is pre-configured
+Each module has detailed troubleshooting:
+- [scopes/README.md - Troubleshooting](scopes/README.md#-troubleshooting)
+- [m2m/README.md - Troubleshooting](m2m/README.md#-troubleshooting)
+- [pkce/README.md - Troubleshooting](pkce/README.md#-troubleshooting)
+- [password-grant/README.md - Troubleshooting](password-grant/README.md#-troubleshooting)
 
 ## 🔗 Related
 
