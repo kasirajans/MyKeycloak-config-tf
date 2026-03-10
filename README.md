@@ -93,7 +93,7 @@ SSO/
 
 ### Prerequisites
 
-- **Keycloak Server**: Running at `http://localhost:8080`
+- **Keycloak Server**: Running at `http://localhost:9090`
 - **Terraform**: v1.0 or higher
 - **Admin Credentials**: admin/admin (default)
 
@@ -377,7 +377,7 @@ open http://localhost:5173
 # 1. Generate code_verifier (random string, 43-128 chars)
 # 2. Generate code_challenge (SHA256 hash of verifier, base64url encoded)
 # 3. Navigate to:
-#    http://localhost:8080/realms/sp-customer/protocol/openid-connect/auth
+#    http://localhost:9090/realms/sp-customer/protocol/openid-connect/auth
 #    ?client_id=<CLIENT_UUID>
 #    &redirect_uri=http://localhost:5173/callback
 #    &response_type=code
@@ -389,7 +389,7 @@ open http://localhost:5173
 # 4. Click "IdP Customer Authentication" button
 # 5. Login with: john.doe@idp-customer.com / [password from terraform output]
 # 6. Exchange authorization code for tokens
-#    POST http://localhost:8080/realms/sp-customer/protocol/openid-connect/token
+#    POST http://localhost:9090/realms/sp-customer/protocol/openid-connect/token
 #    grant_type=authorization_code
 #    code=<AUTH_CODE>
 #    redirect_uri=http://localhost:5173/callback
@@ -402,13 +402,13 @@ open http://localhost:5173
 ```bash
 # After successful login, initiate logout:
 # Navigate to:
-http://localhost:8080/realms/sp-customer/protocol/openid-connect/logout \
+http://localhost:9090/realms/sp-customer/protocol/openid-connect/logout \
   ?id_token_hint=<USER_ID_TOKEN> \
   &post_logout_redirect_uri=http://localhost:5173 \
   &client_id=<CLIENT_UUID>
 
 # OR use refresh token revocation:
-curl -X POST http://localhost:8080/realms/sp-customer/protocol/openid-connect/logout \
+curl -X POST http://localhost:9090/realms/sp-customer/protocol/openid-connect/logout \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "client_id=<CLIENT_UUID>" \
   -d "refresh_token=<REFRESH_TOKEN>"
@@ -444,7 +444,7 @@ CLIENT_ID="<client_uuid>"
 # Wait for access token to expire (5 minutes) or use expired token
 
 # Refresh the access token:
-curl -X POST http://localhost:8080/realms/sp-customer/protocol/openid-connect/token \
+curl -X POST http://localhost:9090/realms/sp-customer/protocol/openid-connect/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=refresh_token" \
   -d "refresh_token=$REFRESH_TOKEN" \
@@ -487,7 +487,7 @@ terraform output clients
 **Problem**: User exists in SP-Customer but not linked to IdP-Customer
 
 **Solution**:
-1. Go to Keycloak Admin Console: http://localhost:8080/admin
+1. Go to Keycloak Admin Console: http://localhost:9090/admin
 2. Switch to `sp-customer` realm
 3. Users → Search for the email
 4. Delete the user

@@ -203,14 +203,14 @@ Passwords are:
 
 ### Check Users in Keycloak Console
 
-1. Login: http://localhost:8080/admin
+1. Login: http://localhost:9090/admin
 2. Switch to realm (e.g., `idp-customer`)
 3. Navigate to **Users**
 4. Verify users are created
 
 ### Test User Login
 
-1. Go to realm login: `http://localhost:8080/realms/idp-customer/account`
+1. Go to realm login: `http://localhost:9090/realms/idp-customer/account`
 2. Login with:
    - Username: `john.doe@idp-customer.com`
    - Password: (from terraform output)

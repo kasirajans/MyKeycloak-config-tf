@@ -204,7 +204,7 @@ scopes:
 Create a `terraform.tfvars` file:
 
 ```hcl
-keycloak_url          = "http://localhost:8080"
+keycloak_url          = "http://localhost:9090"
 keycloak_client_id    = "admin-cli"
 keycloak_username     = "admin"
 keycloak_password     = "admin"

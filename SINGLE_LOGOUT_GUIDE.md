@@ -65,7 +65,7 @@ This guide explains how to implement Single Logout across the federated Keycloak
 // logout.js
 
 // Configuration
-const KEYCLOAK_URL = 'http://localhost:8080';
+const KEYCLOAK_URL = 'http://localhost:9090';
 const REALM = 'sp-customer';
 const CLIENT_ID = 'YOUR_CLIENT_UUID'; // From terraform output
 const POST_LOGOUT_REDIRECT_URI = 'http://localhost:5173/logged-out';
@@ -134,7 +134,7 @@ document.getElementById('logout-btn').addEventListener('click', (e) => {
 import { useCallback } from 'react';
 
 const KEYCLOAK_CONFIG = {
-  url: 'http://localhost:8080',
+  url: 'http://localhost:9090',
   realm: 'sp-customer',
   clientId: 'YOUR_CLIENT_UUID',
   postLogoutRedirectUri: 'http://localhost:5173/logged-out'
@@ -193,7 +193,7 @@ import { Injectable } from '@angular/core';
 })
 export class AuthService {
   private readonly config = {
-    keycloakUrl: 'http://localhost:8080',
+    keycloakUrl: 'http://localhost:9090',
     realm: 'sp-customer',
     clientId: 'YOUR_CLIENT_UUID',
     postLogoutRedirectUri: 'http://localhost:4200/logged-out'
@@ -411,7 +411,7 @@ console.log(sessionStorage.getItem('id_token'));     // null
 
 ### 4. Verify Keycloak Sessions
 
-1. Login to Keycloak Admin Console: http://localhost:8080/admin
+1. Login to Keycloak Admin Console: http://localhost:9090/admin
 2. Switch to `sp-customer` realm
 3. Go to **Sessions** → **User sessions**
 4. Should show no active sessions after logout
@@ -420,7 +420,7 @@ console.log(sessionStorage.getItem('id_token'));     // null
 
 ### SP-Customer Logout Endpoint
 ```
-GET http://localhost:8080/realms/sp-customer/protocol/openid-connect/logout
+GET http://localhost:9090/realms/sp-customer/protocol/openid-connect/logout
   ?post_logout_redirect_uri=http://localhost:5173/logged-out
   &id_token_hint=<ID_TOKEN>
   &client_id=<CLIENT_UUID>
@@ -428,7 +428,7 @@ GET http://localhost:8080/realms/sp-customer/protocol/openid-connect/logout
 
 ### IdP-Customer Logout Endpoint (Called by SP-Customer)
 ```
-POST http://localhost:8080/realms/idp-customer/protocol/openid-connect/logout
+POST http://localhost:9090/realms/idp-customer/protocol/openid-connect/logout
   (Backchannel - called automatically by SP-Customer)
 ```
 

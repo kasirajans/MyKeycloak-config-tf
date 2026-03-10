@@ -103,9 +103,9 @@ providers:
       client_id: "REPLACE_WITH_UUID"  # From app/idp-customer/pkce output
       pkce_enabled: true              # No client_secret needed!
       
-      issuer: "http://localhost:8080/realms/idp-customer"
-      authorization_url: "http://localhost:8080/realms/idp-customer/protocol/openid-connect/auth"
-      token_url: "http://localhost:8080/realms/idp-customer/protocol/openid-connect/token"
+      issuer: "http://localhost:9090/realms/idp-customer"
+      authorization_url: "http://localhost:9090/realms/idp-customer/protocol/openid-connect/auth"
+      token_url: "http://localhost:9090/realms/idp-customer/protocol/openid-connect/token"
       
     settings:
       trust_email: true
@@ -128,7 +128,7 @@ terraform output configured_providers
 ```
 
 ### Test in Keycloak Console
-1. Login: http://localhost:8080/admin
+1. Login: http://localhost:9090/admin
 2. Switch realms using dropdown
 3. Verify realm settings
 4. Check Identity Providers (in SP-Customer)

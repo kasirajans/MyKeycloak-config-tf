@@ -3,7 +3,7 @@
 variable "keycloak_url" {
   description = "Keycloak server URL"
   type        = string
-  default     = "http://localhost:8080"
+  default     = "http://localhost:9090"
 }
 
 variable "keycloak_client_id" {

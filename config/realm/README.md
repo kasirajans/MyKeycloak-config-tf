@@ -87,7 +87,7 @@ terraform output realm_endpoints
 Edit `terraform.tfvars` to configure the Keycloak connection:
 
 ```hcl
-keycloak_url      = "http://localhost:8080"
+keycloak_url      = "http://localhost:9090"
 keycloak_username = "admin"
 keycloak_password = "admin"
 ```
@@ -147,7 +147,7 @@ After applying the configuration, verify the realms are created correctly:
 
 ```bash
 # Check Keycloak admin console
-# http://localhost:8080/admin
+# http://localhost:9090/admin
 
 # Or query via terraform output
 terraform output realms

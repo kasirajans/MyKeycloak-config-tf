@@ -50,6 +50,7 @@ locals {
       name         = "AIAgent-${client.service_type}-${client.app_name}"
       description  = "${client.owner};${client.team};${client.email}"
       scope        = client.scope
+      enabled      = lookup(client, "enabled", true)  # Default to true if not specified
     }
   }
 
@@ -109,7 +110,7 @@ resource "keycloak_openid_client" "aiagent" {
   client_id   = random_uuid.client[each.key].result
   name        = each.value.name
   description = each.value.description
-  enabled     = true  # Hardcoded: always enabled
+  enabled     = each.value.enabled  # Controlled via apps.yaml, defaults to true
 
   # Hardcoded: Client Credentials flow only
   access_type                  = "CONFIDENTIAL"

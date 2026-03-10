@@ -257,7 +257,7 @@ Add allowed origins for CORS:
 web_origins:
   - http://localhost:5173      # Development
   - https://myapp.com          # Production
-  - http://localhost:8080      # Keycloak admin
+  - http://localhost:9090      # Keycloak admin
 ```
 
 ### Custom CORS Headers

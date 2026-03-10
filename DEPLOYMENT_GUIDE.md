@@ -37,7 +37,7 @@ This guide walks through deploying the complete Keycloak configuration including
 ## Prerequisites
 
 - Terraform >= 1.0
-- Keycloak instance running (localhost:8080 or remote)
+- Keycloak instance running (localhost:9090 or remote)
 - Keycloak admin credentials
 - Git (for version control)
 
@@ -93,7 +93,7 @@ nano terraform.tfvars
 
 **Update with your Keycloak credentials:**
 ```hcl
-keycloak_url          = "http://localhost:8080"  # Or your Keycloak URL
+keycloak_url          = "http://localhost:9090"  # Or your Keycloak URL
 keycloak_client_id    = "admin-cli"
 keycloak_username     = "admin"
 keycloak_password     = "your-admin-password"
@@ -237,7 +237,7 @@ echo "========================================="
 ```bash
 # Option 1: Save to environment file (for development)
 cat > aiagent.env <<EOF
-export KEYCLOAK_URL="http://localhost:8080"
+export KEYCLOAK_URL="http://localhost:9090"
 export KEYCLOAK_REALM="customer"
 export AIAGENT_CLIENT_ID="$AIAGENT_CLIENT_ID"
 export AIAGENT_CLIENT_SECRET="$AIAGENT_CLIENT_SECRET"
@@ -554,7 +554,7 @@ terraform state show keycloak_openid_client.m2m[\"aiagent-okta-m2m\"]
 
 ### Keycloak Admin UI
 
-1. Navigate to: `http://localhost:8080/admin`
+1. Navigate to: `http://localhost:9090/admin`
 2. Realm: `customer`
 3. Check:
    - Client Scopes → Should show all custom scopes

@@ -43,5 +43,5 @@ output "attribute_mappers" {
 
 output "login_url" {
   description = "URL to test the broker login"
-  value       = "http://localhost:8080/realms/${local.config.realm}/account"
+  value       = "http://localhost:9090/realms/${local.config.realm}/account"
 }

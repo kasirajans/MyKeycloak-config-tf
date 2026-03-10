@@ -7,16 +7,17 @@ realm: AIAgent
 # Description format: <AppOwner>;<TeamName>;<TeamEmailID>
 # All other settings are hardcoded for consistency
 # Required fields: app_name, service_type, owner, team, email, scope
+# Optional fields: enabled (defaults to true if not specified)
 # Allowed service_type values: MCP (more types can be added in the future)
 
 clients:
   - app_name: oktaAPI
     service_type: MCP
-    owner: Kraaj 
+    owner: Kraaj
     team: Identity Platform
     email: identity-platform@company.com
     scope: okta-api-access
-
+    enabled: false
   # Example: Add more AI agents
   # - app_name: SalesforceIntegration
   #   service_type: MCP
@@ -24,3 +25,13 @@ clients:
   #   team: CRM Team
   #   email: crm-team@company.com
   #   scope: salesforce-api-access
+  #   enabled: true  # Optional: defaults to true if not specified
+
+  # Example: Disabled client
+  # - app_name: TestAgent
+  #   service_type: MCP
+  #   owner: Test User
+  #   team: QA Team
+  #   email: qa-team@company.com
+  #   scope: test.read
+  #   enabled: false  # This client will be disabled in Keycloak

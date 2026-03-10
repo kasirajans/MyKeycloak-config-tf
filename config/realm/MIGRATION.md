@@ -145,7 +145,7 @@ terraform apply
 ### Import Failed
 
 If import fails, check:
-1. Keycloak is running: `curl http://localhost:8080/health/ready`
+1. Keycloak is running: `curl http://localhost:9090/health/ready`
 2. Credentials are correct in `terraform.tfvars`
 3. Realm names match exactly
 

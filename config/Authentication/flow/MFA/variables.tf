@@ -8,7 +8,7 @@ variable "keycloak_realm_id" {
 variable "keycloak_url" {
   description = "The URL of the Keycloak server"
   type        = string
-  default     = "http://localhost:8080"
+  default     = "http://localhost:9090"
 }
 variable "keycloak_username" {
   description = "Admin username for Keycloak authentication"

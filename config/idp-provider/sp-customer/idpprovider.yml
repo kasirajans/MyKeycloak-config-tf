@@ -16,13 +16,13 @@
 #       # client_secret: NOT NEEDED for PKCE (PUBLIC client)
       
 #       # IdP Endpoints (can be auto-discovered or manually specified)
-#       issuer: "http://localhost:8080/realms/idp-customer"
+#       issuer: "http://localhost:9090/realms/idp-customer"
 #       # OR manually specify endpoints:
-#       authorization_url: "http://localhost:8080/realms/idp-customer/protocol/openid-connect/auth"
-#       token_url: "http://localhost:8080/realms/idp-customer/protocol/openid-connect/token"
-#       user_info_url: "http://localhost:8080/realms/idp-customer/protocol/openid-connect/userinfo"
-#       jwks_url: "http://localhost:8080/realms/idp-customer/protocol/openid-connect/certs"
-#       logout_url: "http://localhost:8080/realms/idp-customer/protocol/openid-connect/logout"
+#       authorization_url: "http://localhost:9090/realms/idp-customer/protocol/openid-connect/auth"
+#       token_url: "http://localhost:9090/realms/idp-customer/protocol/openid-connect/token"
+#       user_info_url: "http://localhost:9090/realms/idp-customer/protocol/openid-connect/userinfo"
+#       jwks_url: "http://localhost:9090/realms/idp-customer/protocol/openid-connect/certs"
+#       logout_url: "http://localhost:9090/realms/idp-customer/protocol/openid-connect/logout"
       
 #       # Scopes
 #       default_scopes: "openid profile email"
