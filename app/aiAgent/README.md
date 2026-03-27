@@ -32,6 +32,65 @@ clients:
     scope: okta-api-access
 ```
 
+## Flow Diagram
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant Agent as AI Agent
+    participant MCP as MCP Server
+    participant IdP as IdP Auth Server
+    participant RAS as Resource Auth Server
+    participant API as Resource API
+
+    rect rgb(241, 239, 232)
+        Note over User,IdP: Phase 1 — User triggers agent + SSO
+        User->>Agent: Assign task
+        Agent->>IdP: SSO login (OIDC on behalf of user)
+        IdP-->>Agent: ID Token + Refresh Token
+    end
+
+    rect rgb(250, 238, 218)
+        Note over Agent,IdP: Phase 2 — Token exchange (RFC 8693)
+        Agent->>IdP: POST /token grant_type=token-exchange<br/>subject_token=<id_token> aud=resource-as
+        IdP-->>Agent: ID-JAG (typ=oauth-id-jag+jwt)
+    end
+
+    rect rgb(230, 241, 251)
+        Note over Agent,RAS: Phase 3 — Present ID-JAG, get access token (RFC 7523)
+        Agent->>RAS: POST /token grant_type=jwt-bearer<br/>assertion=<id_jag>
+        RAS-->>Agent: Access Token
+    end
+
+    rect rgb(250, 236, 231)
+        Note over Agent,MCP: Phase 4 — Agent registers token with MCP server
+        Agent->>MCP: Register access token
+        MCP-->>Agent: Token stored, tools ready
+    end
+
+    rect rgb(238, 237, 254)
+        Note over Agent,MCP: Phase 5 — MCP server gets scoped token (optional)
+        Agent->>MCP: Scoped token for MCP server
+        MCP-->>Agent: Ready to call tools
+    end
+
+    loop For each tool call
+        rect rgb(241, 239, 232)
+            Note over User,API: Runtime — MCP tool execution loop
+            User->>Agent: User goal / prompt
+            Agent-->>User: Agent decides: call MCP tool
+
+            Agent->>MCP: tools/call {name, args}<br/>(MCP protocol over SSE / stdio)
+            MCP->>API: GET /api/resource<br/>Authorization: Bearer <token>
+            API-->>MCP: 200 OK — resource data
+            MCP-->>Agent: Tool result (structured JSON)
+
+            Agent->>Agent: Reason over result
+            Agent-->>User: Final answer to user
+        end
+    end
+```
 ## 🔒 Hardcoded Settings
 
 - Client ID: `aiagent_<ServiceType>_<AppName>` (enforced)
@@ -109,3 +168,5 @@ Client naming convention: `aiagent_<ServiceType>_<AppName>`
 - Invalid types will fail during terraform plan with a clear error
 
 See full documentation in the main app README.
+
+

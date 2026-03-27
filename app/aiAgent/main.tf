@@ -24,7 +24,7 @@ locals {
   config = yamldecode(file("${path.module}/apps.yaml"))
 
   # Allowed service types (extend this list as needed)
-  allowed_service_types = ["MCP"]
+  allowed_service_types = ["MCP", "AgentResource"]
 
   # Validate service types
   validated_clients = [
@@ -97,7 +97,7 @@ resource "random_password" "client_secret" {
   }
 }
 
-# AIAgent M2M Clients - Client Credentials Flow Only
+# AIAgent Clients - Client Credentials (MCP) or Token Exchange (AgentResource) Flows
 # All settings hardcoded for consistency
 resource "keycloak_openid_client" "aiagent" {
   for_each = local.clients
@@ -112,12 +112,13 @@ resource "keycloak_openid_client" "aiagent" {
   description = each.value.description
   enabled     = each.value.enabled  # Controlled via apps.yaml, defaults to true
 
-  # Hardcoded: Client Credentials flow only
+  # Hardcoded: Confidential client for both MCP and AgentResource
   access_type                  = "CONFIDENTIAL"
   standard_flow_enabled        = false
   direct_access_grants_enabled = false
   implicit_flow_enabled        = false
-  service_accounts_enabled     = true
+  standard_token_exchange_enabled = each.value.service_type == "AgentResource" ? true : false
+  service_accounts_enabled     = true  # Required for both client credentials (MCP) and token exchange (AgentResource)
 
   # Use generated random password
   client_secret = random_password.client_secret[each.key].result
@@ -152,7 +153,8 @@ resource "keycloak_openid_audience_protocol_mapper" "aiagent_audience" {
 }
 
 # Attach scopes to clients as default scopes
-# For M2M service accounts, only include the custom scope (no email/profile)
+# For M2M service accounts (MCP), only include the custom scope (no email/profile)
+# For token exchange clients (AgentResource), include the custom scope
 # These are service-to-service calls, not user-facing
 resource "keycloak_openid_client_default_scopes" "aiagent_scopes" {
   for_each = local.clients
@@ -164,3 +166,32 @@ resource "keycloak_openid_client_default_scopes" "aiagent_scopes" {
     data.keycloak_openid_client_scope.custom_scopes[each.value.scope].name
   ]
 }
+
+# Token Exchange Grant Configuration for AgentResource Clients
+# AgentResource clients are configured to support OAuth 2.0 Token Exchange (RFC 8693)
+# Enables federated identity flows with Okta and other identity providers
+# 
+# Token Exchange Endpoint:
+# POST /realms/{realm}/protocol/openid-connect/token
+# 
+# Request Parameters:
+#   - grant_type: urn:ietf:params:oauth:grant-type:token-exchange
+#   - client_id: aiagent_AgentResource_<app_name>
+#   - client_secret: <generated-secret>
+#   - subject_token: <okta_id_token>
+#   - subject_token_type: urn:ietf:params:oauth:token-type:id_token
+#   - requested_token_type: urn:ietf:params:oauth:token-type:access_token
+#   - audience: resource-a-server
+#   - scope: user:read
+#
+# Note: Token exchange requires additional Keycloak broker configuration
+# for the identity provider (e.g., Okta OIDC broker) in the AIAgent realm
+#
+# AgentResource clients are restricted to token exchange flow only:
+# - No direct access grants
+# - No standard OAuth 2.0 flows (authorization code, implicit, etc.)
+# - Only confidential client credentials with token exchange grant support
+
+# Token Exchange Configuration:
+# Token exchange must be enabled manually in Keycloak for AgentResource clients.
+# See TOKEN_EXCHANGE_TESTING.md for manual configuration steps in admin console.

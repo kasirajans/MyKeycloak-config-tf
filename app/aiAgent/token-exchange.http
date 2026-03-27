@@ -1,0 +1,88 @@
+###
+# AIAgent Token Exchange Flow Test (RFC 8693)
+# Uses VS Code REST Client extension
+# For federated identity flows with Okta and other providers
+# Make sure to populate the variables below with credentials from Terraform output
+###
+
+# Variables - Update these with your actual values from Terraform output
+@KEYCLOAK_URL = {{$dotenv KEYCLOAK_URL}}
+@REALM = {{$dotenv REALM}}
+
+# Token Exchange Client Credentials (AgentResource type)
+# These are different from standard M2M (MCP) credentials
+@TOKEN_EXCHANGE_CLIENT_ID = {{$dotenv TOKEN_EXCHANGE_CLIENT_ID}}
+@TOKEN_EXCHANGE_CLIENT_SECRET = {{$dotenv TOKEN_EXCHANGE_CLIENT_SECRET}}
+
+# Token Exchange Parameters
+@SUBJECT_TOKEN_TYPE = urn:ietf:params:oauth:token-type:access_token
+@REQUESTED_TOKEN_TYPE = urn:ietf:params:oauth:token-type:access_token
+@AUDIENCE = resource-a-server
+@SCOPE = pd:user:read
+
+# Okta access token - Replace with actual token from Okta
+# To get a real Okta access token:
+#   curl -X POST "https://your-okta-domain/oauth2/v1/token" \
+#     -H "Content-Type: application/x-www-form-urlencoded" \
+#     -d "grant_type=client_credentials" \
+#     -d "client_id=YOUR_OKTA_CLIENT_ID" \
+#     -d "client_secret=YOUR_OKTA_CLIENT_SECRET" \
+#     -d "scope=okta.users.read"
+# Extract the access_token from the response and set it below or in .env as OKTA_ACCESS_TOKEN
+@OKTA_ACCESS_TOKEN = {{$dotenv OKTA_ACCESS_TOKEN}}
+
+###
+# Token Exchange Request
+# Exchanges an Okta IdToken for a Keycloak access token
+# @name tokenExchange
+
+POST {{KEYCLOAK_URL}}/realms/{{REALM}}/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange
+&client_id={{TOKEN_EXCHANGE_CLIENT_ID}}
+&client_secret={{TOKEN_EXCHANGE_CLIENT_SECRET}}
+&subject_token={{OKTA_ACCESS_TOKEN}}
+&subject_token_type={{SUBJECT_TOKEN_TYPE}}
+&requested_token_type={{REQUESTED_TOKEN_TYPE}}
+&audience={{AUDIENCE}}
+&scope={{SCOPE}}
+
+###
+# Extract exchanged token from response
+@exchangedToken = {{tokenExchange.response.body.$.access_token}}
+
+###
+# Verify Exchanged Token (Token Introspection)
+POST {{KEYCLOAK_URL}}/realms/{{REALM}}/protocol/openid-connect/token/introspect
+Content-Type: application/x-www-form-urlencoded
+
+token={{exchangedToken}}
+&client_id={{TOKEN_EXCHANGE_CLIENT_ID}}
+&client_secret={{TOKEN_EXCHANGE_CLIENT_SECRET}}
+
+###
+# Decode and Verify Token
+# This uses https://jwt.io for verification
+# @name verifyTokenOnline
+
+GET https://jwt.io?token={{exchangedToken}}
+
+###
+# Example: Get all available clients for reference
+GET {{KEYCLOAK_URL}}/admin/realms/{{REALM}}/clients
+Authorization: Bearer {{accessToken}}
+
+###
+# cURL commands for terminal testing:
+# Token Exchange:
+# curl -X POST "{{KEYCLOAK_URL}}/realms/{{REALM}}/protocol/openid-connect/token" \
+#   -H "Content-Type: application/x-www-form-urlencoded" \
+#   -d "grant_type=urn:ietf:params:oauth:grant-type:token-exchange" \
+#   -d "client_id={{TOKEN_EXCHANGE_CLIENT_ID}}" \
+#   -d "client_secret={{TOKEN_EXCHANGE_CLIENT_SECRET}}" \
+#   -d "subject_token={{OKTA_ID_TOKEN}}" \
+#   -d "subject_token_type=urn:ietf:params:oauth:token-type:id_token" \
+#   -d "requested_token_type=urn:ietf:params:oauth:token-type:access_token" \
+#   -d "audience=resource-a-server" \
+#   -d "scope=pd:user:read"

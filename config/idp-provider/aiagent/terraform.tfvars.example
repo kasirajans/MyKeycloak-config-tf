@@ -1,0 +1,13 @@
+# Keycloak Configuration
+keycloak_url           = "http://localhost:9090"
+keycloak_client_id     = "admin-cli"
+keycloak_username      = "admin"
+keycloak_password      = "admin"  # Change to your admin password
+keycloak_admin_realm   = "master"
+
+# Okta Configuration
+# For token exchange via JWKS validation only:
+#   - Leave okta_client_secret empty (JWKS is public)
+# For full broker with userinfo sync:
+#   - Provide okta_client_secret from your Okta app
+okta_client_secret = ""  # Optional - only needed if syncing user info from Okta

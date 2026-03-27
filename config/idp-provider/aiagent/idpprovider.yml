@@ -1,0 +1,104 @@
+# Identity Provider Configuration for AIAgent Realm
+# Okta OIDC integration for token exchange support
+
+realm: AIAgent
+
+providers:
+  - alias: okta-oidc
+    display_name: "Okta"
+    enabled: true
+    provider_type: oidc  # oidc, saml, or social
+
+    # Okta OIDC Configuration for Token Exchange
+    # NOTE: For pure token exchange (JWKS validation only), client_secret is NOT required
+    # The IdP will validate token signatures using Okta's public JWKS endpoint
+    oidc:
+      # Okta Application Client Credentials
+      # Only needed if Keycloak needs to call Okta userinfo endpoint
+      # Leave empty or null for pure token exchange validation
+      client_id: "0oas980xvuk2k3RhO697"
+      client_secret: null  # Optional - not needed for token exchange via JWKS
+      
+      # Okta Endpoints (Replace trial-2447193 with your Okta domain)
+      issuer: "https://trial-2447193.okta.com"
+      authorization_url: "https://trial-2447193.okta.com/oauth2/v1/authorize"
+      token_url: "https://trial-2447193.okta.com/oauth2/v1/token"
+      user_info_url: "https://trial-2447193.okta.com/oauth2/v1/userinfo"
+      jwks_url: "https://trial-2447193.okta.com/oauth2/v1/keys"  # Public endpoint - no auth needed
+      logout_url: "https://trial-2447193.okta.com/oauth2/v1/logout"
+
+      # Scopes for token exchange
+      # These are used if Keycloak calls userinfo endpoint (with client_secret)
+      # For pure JWKS validation, scopes don't matter
+      default_scopes: "openid profile email"
+
+      # PKCE - not needed for token exchange
+      pkce_enabled: false
+
+    # Identity Provider Settings
+    settings:
+      store_token: true
+      trust_email: true
+      link_only: false
+      hide_on_login_page: false
+      first_broker_login_flow_alias: "first broker login"
+      sync_mode: "FORCE"  # FORCE keeps data in sync, IMPORT on first login only
+      validate_signature: true
+      gui_order: 1
+
+    # Token Exchange Specific Configuration
+    # Maps Okta claims to Keycloak user attributes
+    mappers:
+      # User ID mapping
+      - name: sub
+        claim_name: sub
+        user_attribute: sub
+        sync_mode: "INHERIT"
+
+      # Email mapping
+      - name: email
+        claim_name: email
+        user_attribute: email
+        sync_mode: "INHERIT"
+
+      # First name
+      - name: given_name
+        claim_name: given_name
+        user_attribute: firstName
+        sync_mode: "INHERIT"
+
+      # Last name
+      - name: family_name
+        claim_name: family_name
+        user_attribute: lastName
+        sync_mode: "INHERIT"
+
+      # Preferred username (for token exchange, use Okta preferred_username)
+      - name: preferred_username
+        claim_name: preferred_username
+        user_attribute: username
+        sync_mode: "INHERIT"
+
+      # App roles mapping (maps Okta appRoles to Keycloak client roles)
+      - name: app_roles
+        claim_name: appRoles
+        user_attribute: appRoles
+        sync_mode: "INHERIT"
+
+      # Okta groups mapping (optional - maps Okta groups to Keycloak groups)
+      - name: groups
+        claim_name: groups
+        user_attribute: groups
+        sync_mode: "INHERIT"
+
+      # Okta domain identifier for multi-tenant deployments
+      - name: okta_domain
+        claim_name: iss
+        user_attribute: okta_domain
+        sync_mode: "INHERIT"
+
+# Note: This configuration enables Keycloak to:
+# 1. Validate Okta access tokens via JWKS endpoint (token exchange validation)
+# 2. Sync user information from Okta on each token exchange
+# 3. Map Okta claims to Keycloak user attributes
+# 4. Support AgentResource clients to exchange Okta tokens for Keycloak access tokens

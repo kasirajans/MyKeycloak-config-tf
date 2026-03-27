@@ -8,7 +8,10 @@ realm: AIAgent
 # All other settings are hardcoded for consistency
 # Required fields: app_name, service_type, owner, team, email, scope
 # Optional fields: enabled (defaults to true if not specified)
-# Allowed service_type values: MCP (more types can be added in the future)
+# Allowed service_type values:
+#   - MCP: Machine-to-Machine clients with client credentials grant
+#   - AgentResource: Token exchange clients for federated identity flows
+#     (POST /realms/AIAgent/protocol/openid-connect/token with grant_type=urn:ietf:params:oauth:grant-type:token-exchange)
 
 clients:
   - app_name: oktaAPI
@@ -18,6 +21,25 @@ clients:
     email: identity-platform@company.com
     scope: okta-api-access
     enabled: false
+  # Example: Token exchange client for federated identity (AgentResource type)
+  - app_name: mcpServer
+    service_type: AgentResource
+    owner: Kraaj
+    team: Identity Platform
+    email: identity-platform@company.com
+    scope: pd:user:read
+    enabled: true
+  #   # Token exchange flow:
+  #   # POST /realms/AIAgent/protocol/openid-connect/token
+  #   # grant_type=urn:ietf:params:oauth:grant-type:token-exchange
+  #   # client_id=aiagent_AgentResource_mcpServer
+  #   # client_secret=<generated-secret>
+  #   # subject_token=<okta_id_token>
+  #   # subject_token_type=urn:ietf:params:oauth:token-type:id_token
+  #   # requested_token_type=urn:ietf:params:oauth:token-type:access_token
+  #   # audience=resource-a-server
+  #   # scope=pd:user:read
+
   # Example: Add more AI agents
   # - app_name: SalesforceIntegration
   #   service_type: MCP
