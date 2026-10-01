@@ -1,0 +1,1 @@
+# TODO: define the fine-grained scopes exposed by one MCP server/API: scope name, description, resource_id (must match an entry in app/aiAgent/resources/), allowed_requesters (teams), and requires_human_approval (bool — if true, only clients declaring auth_pattern: ciba in their request may hold this scope).

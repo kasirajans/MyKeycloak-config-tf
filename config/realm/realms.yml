@@ -1,108 +1,39 @@
 realms:
-  - name: "AIAgent"
-    display_name: "AI Agent for Non Human Identity"
-    display_name_html: "<b>AI Agent for Non Human Identity</b>"
+  - realm: customer
     enabled: true
+    display_name: Customer
+    # PKCE, human, self-service signup — customers register themselves.
+    registration_allowed: true
+    reset_password_allowed: true
+    remember_me: true
+    verify_email: true
+    login_with_email_allowed: true
+    ssl_required: external
+    access_token_lifespan: 5m
 
-    # ============================================================
-    # NHI / AGENT REALM
-    # ============================================================
-    # This realm is for machine/agent identities.
-    # Human identities should remain in the human realm.
-
-    # ------------------------------------------------------------
-    # Human / Browser Registration
-    # ------------------------------------------------------------
-    login_with_email_allowed: false
+  - realm: home-human-automation
+    enabled: true
+    display_name: Home Human Automation
+    # PKCE, human, but residents are owner-provisioned via app/homeAutomation/users/
+    # (see its README: owner-reviewed only, never self-service) — so registration is
+    # off even though this is a human realm, unlike customer.
     registration_allowed: false
-    registration_email_as_username: false
+    reset_password_allowed: true
+    remember_me: true
+    verify_email: true
+    login_with_email_allowed: true
+    ssl_required: external
+    access_token_lifespan: 5m
+
+  - realm: ai-agent
+    enabled: true
+    display_name: AI Agent
+    # No client in this realm ever drives a browser login flow (M2M / client_credentials
+    # and same-realm token exchange only), so self-service/login features are locked off.
+    registration_allowed: false
     reset_password_allowed: false
     remember_me: false
     verify_email: false
-    edit_username_allowed: false
-    duplicate_emails_allowed: false
-
-    # ------------------------------------------------------------
-    # Token Settings
-    # ------------------------------------------------------------
-    # Short-lived access tokens for agents.
-    access_token_lifespan: 300  # 5 minutes
-
-    # Defensive refresh-token settings.
-    # Agents should normally use Client Credentials rather
-    # than refresh tokens.
-    revoke_refresh_token: true
-    refresh_token_max_reuse: 0
-
-    # ------------------------------------------------------------
-    # Session Settings
-    # ------------------------------------------------------------
-    # Primarily relevant to interactive/user sessions.
-    # Keep these only if your Terraform schema requires them.
-    sso_session_idle_timeout: 1800
-    sso_session_max_lifespan: 36000
-
-    offline_session_idle_timeout: 2592000
-    offline_session_max_lifespan: 5184000
-
-    # ------------------------------------------------------------
-    # Transport Security
-    # ------------------------------------------------------------
-    ssl_required: "external"
-
-    # ------------------------------------------------------------
-    # Password Policy
-    # ------------------------------------------------------------
-    # Agents should NOT authenticate using username/password.
-    # Keep a defensive policy for any accidental/manual user
-    # creation, but do not use password authentication for agents.
-    password_policy: "upperCase(1) and length(8) and digits(1) and notUsername"
-
-    # ------------------------------------------------------------
-    # Internationalization
-    # ------------------------------------------------------------
-    supported_locales:
-      - "en"
-      - "es"
-      - "fr"
-      - "de"
-
-    default_locale: "en"
-
-    # ------------------------------------------------------------
-    # Security Headers
-    # ------------------------------------------------------------
-    security_defenses:
-      headers:
-        x_frame_options: "SAMEORIGIN"
-        content_security_policy: "frame-src 'self'; frame-ancestors 'self'; object-src 'none';"
-        x_content_type_options: "nosniff"
-        x_robots_tag: "none"
-        x_xss_protection: "1; mode=block"
-        strict_transport_security: "max-age=31536000; includeSubDomains"
-
-      # ----------------------------------------------------------
-      # Brute Force
-      # ----------------------------------------------------------
-      # Mostly relevant if an interactive authentication flow
-      # is accidentally enabled.
-      brute_force:
-        permanent_lockout: false
-        max_login_failures: 5
-        wait_increment_seconds: 60
-        quick_login_check_milli_seconds: 1000
-        minimum_quick_login_wait_seconds: 60
-        max_failure_wait_seconds: 900
-        failure_reset_time_seconds: 43200
-
-    # ------------------------------------------------------------
-    # Flows
-    # ------------------------------------------------------------
-    # Keep your realm defaults if your Terraform module expects
-    # these. Agent clients themselves will NOT use browser login
-    # or direct grant.
-    browser_flow: "browser"
-    registration_flow: "registration"
-    direct_grant_flow: "direct grant"
-    reset_credentials_flow: "reset credentials"
-    client_authentication_flow: "clients"
+    login_with_email_allowed: false
+    ssl_required: all
+    access_token_lifespan: 2m

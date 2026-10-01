@@ -1,0 +1,8 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Downstream Resource / Audience Registry Entry",
+  "description": "TODO: define the shape of a resource registry entry: resource_id, aud (the audience claim value Keycloak issues tokens for), owning team/API provider, and (for MCP) the server URL. This is the registry app/aiAgent/scopes/*.yaml resource_id fields must resolve against.",
+  "type": "object",
+  "properties": {},
+  "required": []
+}

@@ -1,0 +1,8 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MCP Scope Definition",
+  "description": "TODO: define the shape of a scope definition file: scope name, description, resource_id (must reference an entry in app/aiAgent/resources/), allowed_requesters (teams), and requires_human_approval (bool).",
+  "type": "object",
+  "properties": {},
+  "required": []
+}

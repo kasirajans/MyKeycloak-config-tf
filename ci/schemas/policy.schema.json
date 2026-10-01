@@ -1,0 +1,8 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Authorization Policy Definition",
+  "description": "TODO: define the shape of an authorization policy/permission definition for a resource server.",
+  "type": "object",
+  "properties": {},
+  "required": []
+}

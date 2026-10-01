@@ -1,0 +1,17 @@
+# TODO: client-level config for this app (e.g. redirect_uris, public_client, etc.) —
+# actual client creation isn't implemented yet, so for now this client must already
+# exist in Keycloak: it's looked up via a data source, by client_id = this file's name
+# ("_example-client" here), not created by this module.
+#
+# appconfig: placeholder for that client-level config once client creation is built.
+appconfig: {}
+
+# roles: this client's own app-specific roles, scoped to it (keycloak_role with
+# client_id set). Colocated here instead of a separate roles/client/<name>/ tree, since
+# a client's roles are always 1:1 with that client.
+roles:
+  - name: admin
+    description: Full control over this app.
+
+  - name: viewer
+    description: Read-only access to this app.

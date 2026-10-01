@@ -1,559 +1,141 @@
-# Keycloak SSO Infrastructure as Code
+# MyKeycloak-config-tf
 
-Complete Keycloak SSO setup using Terraform with multi-realm identity federation, PKCE authentication, and YAML-based configuration.
+Terraform-managed Keycloak configuration, organized around identity domains, reusable
+modules, and a data/logic split that lets dev teams self-service AI agent client access
+via merge request.
 
-## 🎯 Overview
-
-This project implements a complete identity and access management (IAM) infrastructure using Keycloak with:
-
-- **Multi-Realm Architecture**: Three realms (customer, sp-customer, idp-customer)
-- **Identity Federation**: SP-Customer realm federates authentication to IdP-Customer realm
-- **PKCE Support**: Secure authentication for public clients (web/mobile apps)
-- **YAML Configuration**: No code changes needed - just edit YAML files
-- **Infrastructure as Code**: Everything managed with Terraform
-
-## 🏗️ Architecture
+## Identity separation
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        Customer Realm                               │
-│                    (Main Application Realm)                         │
-│                                                                     │
-│  ├── PKCE Clients (Public)         - Web/Mobile apps               │
-│  ├── M2M Clients (Confidential)    - Service-to-service            │
-│  └── Password Grant Clients        - Legacy applications           │
-└─────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────┐
-│                      SP-Customer Realm                              │
-│                    (Service Provider)                               │
-│                                                                     │
-│  ├── PKCE Clients (Public)         - Apps with broker auth         │
-│  └── Identity Provider             - Federates to IdP-Customer     │
-│       └── idp-customer-oidc                                         │
-│           ├── PKCE Enabled: Yes                                     │
-│           └── Client: sp-customer-broker-pkce                       │
-└─────────────────────────────────────────────────────────────────────┘
-                                │
-                                │ OIDC Federation (PKCE)
-                                ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                    IdP-Customer Realm                               │
-│                  (Identity Provider / Authorization Server)         │
-│                                                                     │
-│  ├── Broker Clients (PKCE)         - For SP realms                 │
-│  │   └── sp-customer-broker-pkce   - PUBLIC client (no secret)     │
-│  └── Users                          - john.doe@idp-customer.com     │
-│      └── sarah.miller@idp-customer.com                             │
-└─────────────────────────────────────────────────────────────────────┘
+                    Keycloak
+                       |
+     +-----------------+-----------------+
+     |                 |                 |
+     v                 v                 v
+ customer      home-human-automation   ai-agent
+  realm              realm               realm
+     |                 |                 |
+     |                 |                 +-- Gateway
+     |                 |                 +-- personal-ai-agent
+     |                 |                 +-- iot-agent
+     |                 |                 +-- iot-security-agent
+     |                 |                 +-- MCP / resource clients
+     |                 |
+     |                 +-- Human Users
+     |                 +-- Human Apps (PKCE, role-based, minimal scopes)
+     |
+     +-- Customer Users / Apps (PKCE, role-based, minimal scopes)
 ```
 
-## 📁 Project Structure
+AI use cases (personal agent, agent-to-agent, human-to-agent-to-agent, agent-to-MCP-to-tools)
+are **not** separate realms — they're all clients inside the single `ai-agent` realm,
+reached from the human realms through a gateway.
+
+## Concepts
+
+- **Realm** = trust/identity boundary.
+- **Client** = an application, agent, gateway, or protected resource identity.
+- **Client scope** = a reusable permission/claim definition.
+- **Role** = a broader identity/administrative permission.
+- **Gateway** = a runtime enforcement point, implemented in Keycloak as the client(s)
+  under `app/aiAgent/gateway/` using Standard Token Exchange (RFC 8693).
+- **Resource/audience registry** = `app/aiAgent/resources/` — the set of downstream
+  MCP servers/APIs/agents a delegation token's `aud` claim may be restricted to.
+- **Agent Registry** = a separate application, not modeled in Keycloak.
+
+## Delegation model (human -> AI Gateway -> MCP Gateway -> MCP servers)
+
+The AI Gateway and MCP Gateway are built and deployed outside this repo; this repo only
+configures the Keycloak clients they authenticate as and exchange tokens through, using
+Keycloak's Standard Token Exchange V2 (GA by default) and native CIBA grant:
+
+1. A human authenticates in `customer` or `home-human-automation` and gets a subject token.
+2. AI Gateway exchanges it for a token scoped to itself, then — for MCP-bound calls —
+   exchanges again for a token targeted at MCP Gateway. Each exchange is a same-realm,
+   client-to-client audience swap: Keycloak requires the subject_token to already carry
+   the requesting client in its own `aud` claim; there is no separate admin permission
+   gating this, so `exchange_targets` in `app/aiAgent/gateway/*.yaml` exists to drive
+   correct audience/client-scope wiring, not to grant access by itself.
+3. MCP Gateway exchanges again for a token whose `aud` is one specific entry from
+   `app/aiAgent/resources/` (one MCP server), scoped to only what that call needs.
+4. **Open decision, not yet resolved:** Keycloak's GA token exchange does not attach an
+   `act`/`sub` claim identifying both the human and the agent at each hop. If the AI
+   Gateway or MCP Gateway need that for audit/authorization, pick one of: Keycloak's
+   experimental `may_act`-claim "Token Exchange Delegation" feature (opt-in, not GA), a
+   custom protocol mapper that stamps an equivalent claim, or no token-level actor claim
+   at all with the gateways logging the chain themselves instead.
+5. Pure machine/digital-worker clients with no human ever in the chain use
+   `client_credentials` instead (`auth_pattern: client-credentials`).
+6. Scopes marked `requires_human_approval: true` in `app/aiAgent/scopes/` may only be
+   held by a client declaring `auth_pattern: ciba`. Keycloak's CIBA grant handles the
+   protocol; actually delivering the async approval to a device requires a custom
+   `AuthenticationChannelProvider` SPI implementation (also outside this repo).
+
+`app/customer/` and `app/homeAutomation/` clients are plain PKCE, role-based, minimal
+scopes — they don't participate in this delegation chain themselves, only as its origin.
+
+## Ownership
+
+Every client tracks two axes: **team** (the CODEOWNERS/folder boundary — who's allowed
+to request it) and **project** (a team-chosen app/product name — one team may run
+several projects). Both are baked into the Keycloak client itself, not just this repo's
+layout:
+
+- `client_id` is always computed by the owning `main.tf` as `<team>-<project>-<name>`,
+  never supplied directly by a request YAML — `team` comes from the folder path
+  (`app/aiAgent/clients/<team>/`, or an explicit `owner_team` field for `app/customer`
+  and `app/homeAutomation`, which aren't sharded by folder), so a request can't spoof a
+  different owner just by editing a field.
+- `owner_team` and `project` are also set as Keycloak custom client attributes, so
+  ownership is visible/queryable directly in the Keycloak admin console and API, not
+  only derivable by tracing back to this repo.
+- `ci/policy/` checks for `(project, name)` collisions across sibling teams in addition
+  to the schema-level shape checks.
+
+## Layout
+
+- `config/realm/` — realm-level configuration only, one consolidated root module for
+  all realms (`customer`, `home-human-automation`, `ai-agent`), listed in one
+  `realms.yml` rather than a directory per realm. Platform-owned, rarely touched.
+- `config/idp-provider/` — identity provider trust relationships, same one-`.yml`-list
+  convention. Low volume.
+- `app/customer/`, `app/homeAutomation/` — PKCE clients + app-specific (client) roles
+  for the human realms, embedded together in each `clients/<client_name>.yaml`.
+  Role-based, minimal scopes, lower churn than `app/aiAgent`.
+- `users/<realmName>/` (top-level, not under `app/`) — realm-wide identity concerns not
+  tied to any one app: the actual resident/human identities (one `user.yml` per home
+  under `users/home-human-automation/` — `home1/user.yml` today, listing all members
+  under `users:` rather than one file per person; each home also a Keycloak Group
+  auto-granted the `resident` role), global (realm) roles (`resident`, `guest`,
+  `admin` — a member's `account_type: owner` also implies `admin`, `member` implies
+  nothing extra), and references to Keycloak's own built-in IAM/admin roles.
+  Owner-reviewed only, never self-service — real people's PII, unlike client/scope
+  requests. Reads app-specific client role IDs from the matching `app/<realm-app>/`
+  state via `terraform_remote_state`.
+- `app/aiAgent/` — AI agent clients, high churn, onboarded via merge request:
+  - `resources/` — API-provider owned. Registry of downstream audiences.
+  - `scopes/`, `policies/` — API-provider owned. Fine-grained MCP scopes/authorization
+    policies, which teams may request them, and which require human approval.
+  - `gateway/` — platform-owned. The Agent Gateway's own client config.
+  - `clients/<team>/` — dev-team self-service. One YAML file per client request,
+    validated in CI before merge (see `ci/`).
+- `modules/` — reusable Terraform modules (`realm`, `client`, `client-scope`, `role`,
+  `user`, `group`, `policy`) consumed by `config/`, `app/`, and `users/`. `modules/client`
+  is `auth_pattern`-aware (client-credentials / token-exchange / ciba).
+- `ci/` — schema (`schemas/`) and policy (`policy/`) validation that gates self-service
+  merge requests before they can be applied.
+- `CODEOWNERS` — routes approval along the same trust boundary: platform/API-provider
+  teams own `config/`, `modules/`, `app/aiAgent/{scopes,policies,resources,gateway}/`,
+  and `ci/`; individual teams own their own `app/aiAgent/clients/<team>/` folder.
+
+## State boundaries
 
-```
-SSO/
-├── README.md                          # This file - Master overview
-│
-├── config/                            # Configuration resources
-│   ├── realm/                        # Realm configurations
-│   │   ├── customer/                 # Customer realm setup
-│   │   ├── sp-customer/              # SP-Customer realm setup
-│   │   └── idp-customer/             # IdP-Customer realm setup
-│   │
-│   └── idp-provider/                 # Identity Provider configs
-│       └── sp-customer/              # IdP config for SP-Customer
-│           ├── idpprovider.yml       # YAML: IdP configuration
-│           └── main.tf               # Terraform: Create IdP
-│
-├── app/                              # Application/Client configs
-│   ├── customer/                     # Customer realm clients
-│   │   ├── pkce/                     # PKCE clients (web/mobile)
-│   │   ├── m2m/                      # Machine-to-machine clients
-│   │   └── password-grant/           # Password grant clients
-│   │
-│   ├── sp-customer/                  # SP-Customer realm clients
-│   │   └── pkce/                     # PKCE clients with broker
-│   │       ├── apps.yaml             # YAML: Client configuration
-│   │       └── main.tf               # Terraform: Create clients
-│   │
-│   └── idp-customer/                 # IdP-Customer realm clients
-│       └── pkce/                     # PKCE broker clients
-│           ├── apps.yaml             # YAML: Broker client config
-│           └── main.tf               # Terraform: Create broker
-│
-└── users/                            # User management
-    ├── customer/                     # Customer realm users
-    ├── sp-customer/                  # SP-Customer realm users
-    └── idp-customer/                 # IdP-Customer realm users
-        ├── user.csv                  # CSV: User data
-        └── main.tf                   # Terraform: Create users
-```
+Each of `app/aiAgent/{scopes,policies,resources,gateway}`, and each team folder under
+`app/aiAgent/clients/`, is intended to become its own Terraform state (own backend) once
+volume warrants it — this keeps `plan`/`apply` fast and a team's merge request from
+refreshing state it doesn't own. Cross-state references go through
+`terraform_remote_state` outputs, not shared state.
 
-## 🚀 Quick Start
-
-### Prerequisites
-
-- **Keycloak Server**: Running at `http://localhost:9090`
-- **Terraform**: v1.0 or higher
-- **Admin Credentials**: admin/admin (default)
-
-### 1. Deploy Realms
-
-```bash
-# Deploy all three realms
-cd config/realm/customer && terraform init && terraform apply -auto-approve
-cd ../sp-customer && terraform init && terraform apply -auto-approve
-cd ../idp-customer && terraform init && terraform apply -auto-approve
-```
-
-### 2. Create Users in IdP-Customer
-
-```bash
-cd users/idp-customer
-terraform init
-terraform apply -auto-approve
-```
-
-Users created:
-- `john.doe@idp-customer.com`
-- `sarah.miller@idp-customer.com`
-
-### 3. Deploy Broker Client in IdP-Customer
-
-```bash
-cd app/idp-customer/pkce
-terraform init
-terraform apply -auto-approve
-
-# Get the client UUID
-terraform output -json clients | jq -r '.["sp-customer-broker-pkce"].client_id'
-```
-
-### 4. Configure Identity Provider in SP-Customer
-
-```bash
-cd config/idp-provider/sp-customer
-
-# The client_id should already be in idpprovider.yml
-# Verify it matches the output from step 3
-cat idpprovider.yml
-
-# Deploy the IdP configuration
-terraform init
-terraform apply -auto-approve
-```
-
-### 5. Deploy PKCE Clients
-
-```bash
-# SP-Customer PKCE clients (with broker)
-cd app/sp-customer/pkce
-terraform init
-terraform apply -auto-approve
-
-# Get client UUID for your app
-terraform output clients
-```
-
-### 6. Test the Flow
-
-1. **Start your web app** at `http://localhost:5173` (or configured redirect URI)
-2. **Initiate login** using the PKCE client UUID from step 5
-3. **User is redirected** to SP-Customer realm
-4. **Click "IdP Customer Authentication"** button
-5. **Login with**: `john.doe@idp-customer.com` / `[password from terraform output]`
-6. **Success!** User is authenticated via IdP-Customer
-
-## 🔑 Key Concepts
-
-### YAML-Based Configuration
-
-All clients and identity providers are configured via YAML files - **no Terraform code changes needed!**
-
-**Example: Adding a new PKCE client**
-```yaml
-# File: app/sp-customer/pkce/apps.yaml
-clients:
-  - client_id: my-new-app
-    name: "My New Application"
-    enabled: true
-    pkce:
-      challenge_method: S256
-    redirect_uris:
-      - http://localhost:3000/callback
-    mappers:
-      - type: user_attribute
-        name: email
-        user_attribute: email
-        claim_name: email
-```
-
-Then just run: `terraform apply`
-
-### PKCE (Proof Key for Code Exchange)
-
-- **What**: Enhanced security for public clients (web/mobile apps)
-- **Why**: No client secrets needed - uses code challenge/verifier
-- **Where**: Used in IdP-Customer broker client and SP-Customer PKCE clients
-- **How**: `pkce_enabled: true` in configuration
-
-### Identity Federation Flow (Login)
-
-```
-[User's Browser]
-      │
-      ├─► 1. Navigate to app (localhost:5173)
-      │
-      ├─► 2. App initiates PKCE login to SP-Customer
-      │       POST /realms/sp-customer/protocol/openid-connect/auth
-      │       + client_id=<CLIENT_UUID>
-      │       + redirect_uri=http://localhost:5173/callback
-      │       + response_type=code
-      │       + scope=openid profile email
-      │       + code_challenge (PKCE - SHA256 hash)
-      │       + code_challenge_method=S256
-      │
-      ├─► 3. SP-Customer shows login page
-      │       "Login" or "IdP Customer Authentication" button
-      │
-      ├─► 4. User clicks "IdP Customer Authentication"
-      │       (triggers broker flow to IdP-Customer)
-      │
-      ├─► 5. SP-Customer redirects to IdP-Customer (PKCE)
-      │       GET /realms/idp-customer/protocol/openid-connect/auth
-      │       + client_id=sp-customer-broker-pkce (broker client)
-      │       + code_challenge (passed through)
-      │       + code_challenge_method=S256
-      │
-      ├─► 6. User logs in to IdP-Customer
-      │       Username: john.doe@idp-customer.com
-      │       Password: [from terraform output]
-      │
-      ├─► 7. IdP-Customer validates credentials & returns auth code
-      │       Redirects back to SP-Customer broker endpoint
-      │       + authorization_code
-      │
-      ├─► 8. SP-Customer exchanges code for token (with PKCE verifier)
-      │       POST /realms/idp-customer/protocol/openid-connect/token
-      │       + grant_type=authorization_code
-      │       + code=<authorization_code>
-      │       + code_verifier (PKCE - original random string)
-      │       + client_id=sp-customer-broker-pkce
-      │
-      ├─► 9. IdP-Customer validates code_verifier and returns tokens
-      │       Returns: access_token, id_token, refresh_token
-      │
-      ├─► 10. SP-Customer creates/updates/links user account
-      │        - First time: Creates new user with email from IdP
-      │        - Subsequent: Links to existing user or updates attributes
-      │        - Sync mode controls: import/force/legacy
-      │
-      └─► 11. SP-Customer redirects to app with SP-Customer token
-              + authorization_code (for SP-Customer realm)
-              
-      ├─► 12. App exchanges SP code for SP-Customer tokens
-              POST /realms/sp-customer/protocol/openid-connect/token
-              + grant_type=authorization_code
-              + code=<sp_authorization_code>
-              + code_verifier (app's original PKCE verifier)
-              + client_id=<APP_CLIENT_UUID>
-              
-      └─► 13. App receives tokens and user is authenticated!
-              access_token, id_token, refresh_token (from SP-Customer)
-```
-
-### Logout Flow
-
-```
-[User's Browser - Logout Initiated]
-      │
-      ├─► 1. App initiates logout
-      │       GET /realms/sp-customer/protocol/openid-connect/logout
-      │       + id_token_hint=<user's_id_token>
-      │       + post_logout_redirect_uri=http://localhost:5173
-      │       + client_id=<CLIENT_UUID>
-      │
-      ├─► 2. SP-Customer terminates local session
-      │       - Invalidates access_token
-      │       - Clears SSO session cookies
-      │       - Marks session as logged out
-      │
-      ├─► 3. SP-Customer propagates logout to IdP-Customer (backchannel)
-      │       POST /realms/idp-customer/protocol/openid-connect/logout
-      │       + Terminates IdP session
-      │       + Clears IdP SSO cookies
-      │
-      ├─► 4. SP-Customer redirects to post_logout_redirect_uri
-      │       User is redirected back to app
-      │
-      └─► 5. App clears local tokens and session
-              User is fully logged out from:
-              - Application
-              - SP-Customer realm
-              - IdP-Customer realm (via broker)
-```
-
-### Session Management
-
-**Token Lifespans:**
-- **Access Token**: 5 minutes (300s)
-- **SSO Session Idle**: 30 minutes (1800s)
-- **SSO Session Max**: 10 hours (36000s)
-- **Offline Session Idle**: 30 days
-- **Offline Session Max**: 60 days
-
-**Single Sign-On (SSO):**
-- User logs in once to IdP-Customer
-- Automatically authenticated to SP-Customer (and any other federated realms)
-- SSO session maintained across all federated realms
-- Logout from one realm logs out from all realms (if backchannel enabled)
-
-**Session Timeout:**
-- After 30 minutes of inactivity → Token refresh required
-- After 10 hours max → Must re-authenticate
-- Refresh tokens can extend session without re-login (until offline max)
-
-
-## 📝 Common Tasks
-
-### Add a New Client
-
-1. Edit the appropriate `apps.yaml` file
-2. Add your client configuration
-3. Run `terraform apply`
-
-### Add a New Identity Provider
-
-1. Edit `config/idp-provider/sp-customer/idpprovider.yml`
-2. Add provider configuration (Google, GitHub, Azure AD, etc.)
-3. Run `terraform apply`
-
-### Add New Users
-
-1. Edit `users/idp-customer/user.csv`
-2. Add user rows
-3. Run `terraform apply`
-
-### Get Client Credentials
-
-```bash
-# Get all clients
-cd app/sp-customer/pkce
-terraform output clients
-
-# Get specific client UUID
-terraform output -json clients | jq -r '.["mobile-web-app-broker"].client_id'
-```
-
-### View User Passwords
-
-```bash
-cd users/idp-customer
-terraform output user_credentials
-```
-
-## 🔒 Security Features
-
-- ✅ **PKCE for Public Clients** - No client secrets exposed
-- ✅ **Short Token Lifespans** - Access tokens expire in 5 minutes
-- ✅ **Signature Validation** - JWT tokens validated via JWKS
-- ✅ **Brute Force Protection** - Failed login attempt limiting
-- ✅ **Security Headers** - XSS, CSRF, Clickjacking protection
-- ✅ **HTTPS Ready** - Use HTTPS in production (currently localhost for dev)
-
-## 🧪 Testing
-
-### Test Login Flow
-
-```bash
-# Start a simple HTTP server to test callbacks
-cd /tmp
-python3 -m http.server 5173 &
-
-# Open browser
-open http://localhost:5173
-
-# Manually construct PKCE login URL:
-# 1. Generate code_verifier (random string, 43-128 chars)
-# 2. Generate code_challenge (SHA256 hash of verifier, base64url encoded)
-# 3. Navigate to:
-#    http://localhost:9090/realms/sp-customer/protocol/openid-connect/auth
-#    ?client_id=<CLIENT_UUID>
-#    &redirect_uri=http://localhost:5173/callback
-#    &response_type=code
-#    &scope=openid profile email
-#    &code_challenge=<CHALLENGE>
-#    &code_challenge_method=S256
-#    &state=<RANDOM_STATE>
-
-# 4. Click "IdP Customer Authentication" button
-# 5. Login with: john.doe@idp-customer.com / [password from terraform output]
-# 6. Exchange authorization code for tokens
-#    POST http://localhost:9090/realms/sp-customer/protocol/openid-connect/token
-#    grant_type=authorization_code
-#    code=<AUTH_CODE>
-#    redirect_uri=http://localhost:5173/callback
-#    client_id=<CLIENT_UUID>
-#    code_verifier=<ORIGINAL_VERIFIER>
-```
-
-### Test Logout Flow
-
-```bash
-# After successful login, initiate logout:
-# Navigate to:
-http://localhost:9090/realms/sp-customer/protocol/openid-connect/logout \
-  ?id_token_hint=<USER_ID_TOKEN> \
-  &post_logout_redirect_uri=http://localhost:5173 \
-  &client_id=<CLIENT_UUID>
-
-# OR use refresh token revocation:
-curl -X POST http://localhost:9090/realms/sp-customer/protocol/openid-connect/logout \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "client_id=<CLIENT_UUID>" \
-  -d "refresh_token=<REFRESH_TOKEN>"
-
-# Verify logout:
-# 1. Try to use the old access_token - should fail (401)
-# 2. Try to refresh with old refresh_token - should fail
-# 3. Try to access Keycloak account page - should require login
-```
-
-### Test SSO (Single Sign-On)
-
-```bash
-# 1. Login to SP-Customer realm app (as shown above)
-# 2. Open new tab/window and navigate to another SP-Customer app
-# 3. User should be automatically logged in (SSO session active)
-# 4. No re-authentication required
-
-# Test SSO across realms:
-# - Login via SP-Customer → IdP-Customer (federated)
-# - Navigate to another app using IdP-Customer directly
-# - Should auto-authenticate (same IdP session)
-```
-
-### Test Token Refresh
-
-```bash
-# Get initial tokens
-ACCESS_TOKEN="<access_token>"
-REFRESH_TOKEN="<refresh_token>"
-CLIENT_ID="<client_uuid>"
-
-# Wait for access token to expire (5 minutes) or use expired token
-
-# Refresh the access token:
-curl -X POST http://localhost:9090/realms/sp-customer/protocol/openid-connect/token \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=refresh_token" \
-  -d "refresh_token=$REFRESH_TOKEN" \
-  -d "client_id=$CLIENT_ID"
-
-# Response includes new access_token, refresh_token, and id_token
-```
-
-### Get User Passwords for Testing
-
-```bash
-cd users/idp-customer
-
-# Get all user credentials
-terraform output -json user_credentials
-
-# Get specific user's password
-terraform output -json user_passwords | jq -r '.["john.doe@idp-customer.com"]'
-
-# Get user with groups
-terraform output -json user_credentials | jq -r '.["john.doe@idp-customer.com"]'
-```
-
-### Verify Federation
-
-```bash
-# Check IdP configuration
-cd config/idp-provider/sp-customer
-terraform output provider_details
-
-# Check broker client
-cd app/idp-customer/pkce
-terraform output clients
-```
-
-## 🛠️ Troubleshooting
-
-### "Account already exists" Error
-
-**Problem**: User exists in SP-Customer but not linked to IdP-Customer
-
-**Solution**:
-1. Go to Keycloak Admin Console: http://localhost:9090/admin
-2. Switch to `sp-customer` realm
-3. Users → Search for the email
-4. Delete the user
-5. Try logging in again
-
-### "Missing parameter: code_challenge_method" Error
-
-**Problem**: PKCE not enabled on IdP provider
-
-**Solution**: Already fixed! `pkce_enabled: true` in `idpprovider.yml`
-
-### "Invalid redirect_uri" Error
-
-**Problem**: Redirect URI not registered
-
-**Solution**: Add the URI to `redirect_uris` in `apps.yaml`
-
-### "Token signature validation failed"
-
-**Problem**: JWKS URL misconfigured
-
-**Solution**: Verify endpoints in `idpprovider.yml` match IdP-Customer realm
-
-## 📚 Documentation
-
-Each directory contains a README explaining its purpose:
-
-- **config/README.md** - Realm and IdP configuration
-- **app/README.md** - Client/application configuration
-- **users/README.md** - User management
-
-## 🔄 Deployment Order
-
-When setting up from scratch:
-
-1. **Realms** → `config/realm/*/`
-2. **Users** → `users/*/`
-3. **Broker Clients** → `app/idp-customer/pkce/`
-4. **Identity Providers** → `config/idp-provider/sp-customer/`
-5. **PKCE Clients** → `app/sp-customer/pkce/`
-
-## 🌟 Features
-
-- ✅ Multi-realm architecture
-- ✅ Identity federation with PKCE
-- ✅ YAML-based configuration (no code changes)
-- ✅ Protocol mappers (user attributes, audience)
-- ✅ CSV-based user management
-- ✅ Auto-generated passwords
-- ✅ Email as username
-- ✅ Token configuration
-- ✅ Security defenses
-- ✅ Infrastructure as Code
-
-## 📞 Support
-
-For issues or questions:
-1. Check troubleshooting section above
-2. Review individual directory READMEs
-3. Check Terraform outputs for configuration details
-4. Review Keycloak logs: `docker logs keycloak` (if using Docker)
-
-## 📜 License
-
-This project is for educational and development purposes.
-
----
-
-**Built with ❤️ using Terraform + Keycloak + YAML**
+`config/realm/` is a deliberate exception: all realms share one state, since realms are
+low-churn (create once, rarely touched again) — splitting them into isolated per-realm
+states would just be repeated provider/backend boilerplate for little benefit.

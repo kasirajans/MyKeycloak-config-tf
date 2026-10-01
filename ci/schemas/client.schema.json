@@ -1,0 +1,8 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AI Agent Client Request",
+  "description": "TODO: define the allowed fields for a self-service client request: project (required, kebab-case pattern — the app/product this client belongs to; a team may declare several distinct projects across its files), name (required, kebab-case — short client name within that project), description, requested_scopes, redirect_uris, and auth_pattern (enum: client-credentials | token-exchange | ciba — declares which Keycloak delegation flow this client uses; drives the checks in ci/policy/). additionalProperties: false, and explicitly forbid a client_id field — it is always computed by main.tf as <team>-<project>-<name> (team from the folder path, never from requester-supplied data) so ownership can't be spoofed. Keep this narrow — real access control is enforced by ci/policy, not by this schema.",
+  "type": "object",
+  "properties": {},
+  "required": []
+}

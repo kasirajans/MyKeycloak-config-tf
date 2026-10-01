@@ -1,0 +1,33 @@
+# TODO: replace placeholder teams below with real GitHub/GitLab team handles.
+
+# Platform/security team owns realm + IdP config — never touched by self-service MRs.
+/config/  @platform-team
+
+# Platform owns reusable module logic.
+/modules/  @platform-team
+
+# API providers own scope, resource-registry, and policy definitions for AI agent
+# access — dev teams request against these, they don't edit them.
+/app/aiAgent/scopes/     @api-providers
+/app/aiAgent/policies/   @api-providers
+/app/aiAgent/resources/  @api-providers
+
+# Platform owns the Agent Gateway's own client config (token-exchange / permitted
+# exchange targets) — this is a security boundary, not a per-team request.
+/app/aiAgent/gateway/  @platform-team
+
+# Platform owns the module logic that reads client requests; dev teams own only their
+# own request folder. TODO: add one line per onboarded team, e.g.:
+# /app/aiAgent/clients/team-a/  @team-a
+/app/aiAgent/clients/*.tf  @platform-team
+
+/app/customer/       @platform-team
+/app/homeAutomation/  @platform-team
+
+# Real human identities (PII) and realm-wide roles — always owner-reviewed, never
+# self-service, regardless of which realm or site (apartment, future office/cabin, ...)
+# they belong to. Kept separate from app/ since these aren't app-specific.
+/users/  @platform-team
+
+# CI guardrails — schema/policy changes need platform review.
+/ci/  @platform-team

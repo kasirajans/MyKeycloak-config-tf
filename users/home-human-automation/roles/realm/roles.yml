@@ -1,0 +1,21 @@
+# Global (realm) roles — apply across the whole home-human-automation realm, not scoped
+# to any one app/client. Created as keycloak_role resources with no client_id.
+roles:
+  - name: resident
+    description: >-
+      Full resident access to home automation. Auto-granted to every member of a
+      home's group (see main.tf) — do not also list this individually on a resident's
+      own roles: unless they're not a group member for some reason.
+
+  - name: guest
+    description: Limited, temporary access.
+
+  - name: admin
+    description: >-
+      Administrative access to a home's automation UI/settings. Assigned individually
+      (roles: on that resident's own file) to whichever resident(s) administer a given
+      home — not auto-granted by group membership, since not every resident of a home
+      is its admin. Scoping "admin of which home" comes from combining this role with
+      the admin's own home1/home2/... group membership; the consuming app must check
+      both claims together — Keycloak grants the role and records the membership, it
+      doesn't fuse them into one permission on its own.

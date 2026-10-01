@@ -1,0 +1,1 @@
+# TODO: define the ai-gateway client: client_id, and exchange_targets (app/aiAgent client_ids or the mcp-gateway client this client is allowed to request a token exchange toward — see README.md for how Keycloak actually enforces this, since it is NOT a fine-grained admin permission).
