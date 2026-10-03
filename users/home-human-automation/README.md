@@ -10,9 +10,9 @@ only). This directory owns:
   self-service — real human identities (PII) always go through the same review path as
   `config/realm/`, regardless of who administers a given home. See CODEOWNERS.
 - **`account_type` on each member** — `owner` or `member`. `owner` automatically also
-  gets the `admin` role (this home's admin) on top of `resident`; `member` gets nothing
+  gets the `home-admin` role (this home's admin) on top of `resident`; `member` gets nothing
   extra. An optional per-member `roles:` list adds further grants beyond that
-  (`iam:<role>`, `<client_name>:<role>`) — you don't need to know Keycloak role names
+  (`kc-admin:<role>`, `<client_name>:<role>`) — you don't need to know Keycloak role names
   just to declare who owns a home.
 - **One Keycloak Group per home**, named after the folder (e.g. `home1`) — every member
   listed in that home's `user.yml` becomes a group member (`keycloak_group_memberships`,
@@ -20,19 +20,20 @@ only). This directory owns:
   `resident` role (`keycloak_group_roles`), so `resident` is never listed on an
   individual member — it always comes from group membership.
 - **Global (realm) roles** — `roles/realm/roles.yml`: `resident` (group-granted, see
-  above), `guest`, and `admin`. `admin` only ever reaches a member via `account_type:
+  above), `guest`, and `home-admin`. `home-admin` only ever reaches a member via `account_type:
   owner` — not every member of a home is its owner, so it can't be a group-level grant.
-  "Admin of which home" is the combination of the `admin` role plus that person's own
+  "Admin of which home" is the combination of the `home-admin` role plus that person's own
   home-group membership; **the consuming application must check both claims
   together** — Keycloak grants the role and records the membership as two separate
   facts, it doesn't fuse them into one "admin-of-home1-specifically" permission on its
   own.
-- **IAM/Keycloak-admin role references** — `roles/iam/roles.yml`, what a user can do in
-  Keycloak itself (e.g. `manage-users`), looked up on the realm's built-in
-  `realm-management` client, never created.
+- **Keycloak admin role references** — `roles/admin/roles.yml` (`admin_roles:` list),
+  what a user can do in Keycloak itself (e.g. `manage-users`), looked up on the realm's
+  built-in `realm-management` client, never created. Not the same as the `home-admin` realm
+  role above, which is this app's home-admin permission.
 
-A member's optional `roles:` list can reference `iam:<role>` for an IAM/admin
-reference, or `<client_name>:<role>` for an app-specific client role — the latter is
+A member's optional `roles:` list can reference `kc-admin:<role>` for a Keycloak admin
+role, or `<client_name>:<role>` for an app-specific client role — the latter is
 **not owned here**. Client roles are defined inline in that client's own file,
 `app/homeAutomation/clients/<client_name>.yaml`'s `roles:` key (app-level, since
 they're inherently tied to that app's own client), and this state reads them read-only

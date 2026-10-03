@@ -107,7 +107,7 @@ layout:
   under `users/home-human-automation/` — `home1/user.yml` today, listing all members
   under `users:` rather than one file per person; each home also a Keycloak Group
   auto-granted the `resident` role), global (realm) roles (`resident`, `guest`,
-  `admin` — a member's `account_type: owner` also implies `admin`, `member` implies
+  `home-admin` — a member's `account_type: owner` also implies `home-admin`, `member` implies
   nothing extra), and references to Keycloak's own built-in IAM/admin roles.
   Owner-reviewed only, never self-service — real people's PII, unlike client/scope
   requests. Reads app-specific client role IDs from the matching `app/<realm-app>/`

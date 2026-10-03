@@ -4,10 +4,10 @@ locals {
   realm_roles_data = fileexists("${path.module}/roles/realm/roles.yml") ? yamldecode(file("${path.module}/roles/realm/roles.yml")) : { roles = [] }
   realm_roles      = { for r in local.realm_roles_data.roles : r.name => r }
 
-  # References to Keycloak's own built-in admin roles — roles/iam/roles.yml. What a
+  # References to Keycloak's own built-in admin roles — roles/admin/roles.yml. What a
   # user can do in Keycloak/the IAM system itself, looked up here for the same reason.
-  iam_roles_data = fileexists("${path.module}/roles/iam/roles.yml") ? yamldecode(file("${path.module}/roles/iam/roles.yml")) : { iam_roles = [] }
-  iam_role_names  = toset(try(local.iam_roles_data.iam_roles, []))
+  admin_roles_data = fileexists("${path.module}/roles/admin/roles.yml") ? yamldecode(file("${path.module}/roles/admin/roles.yml")) : { admin_roles = [] }
+  admin_role_names = toset(try(local.admin_roles_data.admin_roles, []))
 
   # One user.yml per home (home1/user.yml today), not one file per person — each lists
   # that home's members under "users:". The glob only matches files literally named
@@ -19,17 +19,17 @@ locals {
 
   # Flatten every home's users: list into individual records, tagged with their home
   # and with roles resolved from account_type:
-  #   - "owner"  -> also gets "admin" (this home's admin), on top of "resident" from
+  #   - "owner"  -> also gets "home-admin" (this home's admin), on top of "resident" from
   #                 group membership.
   #   - "member" -> no automatic extra role beyond "resident".
-  # roles: on a user entry adds further grants on top of that (iam:*, <client>:<role>).
+  # roles: on a user entry adds further grants on top of that (kc-admin:*, <client>:<role>).
   users = merge([
     for f in local.home_files : {
       for u in yamldecode(file("${path.module}/${f}")).users :
       "${split("/", f)[0]}/${u.username}" => merge(u, {
         home = split("/", f)[0]
         resolved_roles = concat(
-          u.account_type == "owner" ? ["admin"] : [],
+          u.account_type == "owner" ? ["home-admin"] : [],
           try(u.roles, [])
         )
       })
@@ -44,24 +44,32 @@ locals {
 
   # App-specific (client) roles are NOT owned here — they stay in app/homeAutomation/
   # (app-level, tied to that app's own clients) and are read via remote state.
-  client_role_ids = data.terraform_remote_state.home_automation_app.outputs.role_ids
+  client_role_ids = try(data.terraform_remote_state.home_automation_app[0].outputs.role_ids, {})
 
-  # Combined lookup: realm roles by plain name, iam roles as "iam:<name>", client roles
-  # as "<client_name>:<role>" (already that shape in the remote output).
+  # Combined lookup: realm roles by plain name, Keycloak admin roles as "kc-admin:<name>",
+  # client roles as "<client_name>:<role>" (already that shape in the remote output).
+  # Note "home-admin" (realm role) and "kc-admin:<name>" are different keys.
   role_ids = merge(
     { for name, m in module.realm_role : name => m.id },
-    { for name, d in data.keycloak_role.iam : "iam:${name}" => d.id },
+    { for name, d in data.keycloak_role.admin : "kc-admin:${name}" => d.id },
     local.client_role_ids,
   )
 }
 
 # App-specific client roles live in app/homeAutomation/'s state (see that directory's
-# README) — read-only here, this state never creates or modifies them.
+# README) — read-only here, this state never creates or modifies them. Only read once
+# that state exists; until then there are no client roles to grant, and referencing
+# one from a user's roles: fails on the role_ids lookup below.
+locals {
+  home_automation_state = "${path.module}/../../app/homeAutomation/terraform.tfstate"
+}
+
 data "terraform_remote_state" "home_automation_app" {
+  count   = fileexists(local.home_automation_state) ? 1 : 0
   backend = "local"
 
   config = {
-    path = "${path.module}/../../app/homeAutomation/terraform.tfstate"
+    path = local.home_automation_state
   }
 }
 
@@ -71,8 +79,8 @@ data "keycloak_openid_client" "realm_management" {
   client_id = "realm-management"
 }
 
-data "keycloak_role" "iam" {
-  for_each = local.iam_role_names
+data "keycloak_role" "admin" {
+  for_each = local.admin_role_names
 
   realm_id  = var.realm_id
   client_id = data.keycloak_openid_client.realm_management.id
@@ -89,9 +97,9 @@ module "realm_role" {
 }
 
 # One Keycloak group per home. Every member auto-gets the "resident" role via
-# keycloak_group_roles (inside modules/group). "admin" (account_type: owner) and any
+# keycloak_group_roles (inside modules/group). "home-admin" (account_type: owner) and any
 # other roles: stay individual grants; scoping "admin of which home" is the combination
-# of the admin role + this group membership, checked by the consuming app.
+# of the home-admin role + this group membership, checked by the consuming app.
 module "home_group" {
   source   = "../../modules/group"
   for_each = local.homes

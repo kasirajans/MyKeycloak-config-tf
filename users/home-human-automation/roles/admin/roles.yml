@@ -4,6 +4,7 @@
 # are looked up (data source), never created. Pick names from Keycloak's own role list,
 # e.g.: realm-admin, manage-users, view-users, manage-clients, view-clients,
 # manage-realm, view-realm, manage-identity-providers, manage-authorization.
-iam_roles:
+# Referenced from a user's roles: list as "kc-admin:<name>", e.g. kc-admin:manage-users.
+admin_roles:
   - manage-users
   - view-users

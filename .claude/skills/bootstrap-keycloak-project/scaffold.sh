@@ -138,7 +138,7 @@ outputs.tf exposes the client role IDs as a role_ids map (<client_name>:<role> -
 ### owner-reviewed, never self-service (real human identities are PII, unlike app/aiAgent
 ### client requests). Built out for home-human-automation; the same shape applies to any
 ### other realm that later needs Terraform-managed users/global roles. ###
-mkdir -p users/home-human-automation/roles/realm users/home-human-automation/roles/iam users/home-human-automation/home1
+mkdir -p users/home-human-automation/roles/realm users/home-human-automation/roles/admin users/home-human-automation/home1
 cat > users/home-human-automation/roles/realm/roles.yml <<'EOF'
 # Global (realm) roles — apply across the whole home-human-automation realm, not scoped
 # to any one app/client. Created as keycloak_role resources with no client_id.
@@ -152,7 +152,7 @@ roles:
   - name: guest
     description: Limited, temporary access.
 
-  - name: admin
+  - name: home-admin
     description: >-
       Administrative access to a home's automation UI/settings. Assigned individually
       (roles: on that resident's own file) to whichever resident(s) administer a given
@@ -162,8 +162,8 @@ roles:
       both claims together — Keycloak grants the role and records the membership, it
       doesn't fuse them into one permission on its own.
 EOF
-yaml_stub users/home-human-automation/roles/iam/roles.yml \
-  "references to Keycloak's own built-in administrative roles — an \"iam_roles:\" list of role names (e.g. manage-users, realm-admin) on the realm's automatic realm-management client, looked up, never created"
+yaml_stub users/home-human-automation/roles/admin/roles.yml \
+  "references to Keycloak's own built-in administrative roles — an \"admin_roles:\" list of role names (e.g. manage-users, realm-admin) on the realm's automatic realm-management client, looked up, never created"
 cat > users/home-human-automation/home1/_example-user.yml <<'EOF'
 # TODO: example data, ignored by main.tf (filename starts with "_example"). Copy this
 # pattern into a real user.yml in this folder to define home1's members.
@@ -172,12 +172,12 @@ cat > users/home-human-automation/home1/_example-user.yml <<'EOF'
 # via home1's Keycloak group membership — never list it individually.
 #
 # account_type:
-#   - owner  -> this home's admin. Automatically also gets the "admin" role (on top of
+#   - owner  -> this home's admin. Automatically also gets the "home-admin" role (on top of
 #               "resident" from group membership) — no need to list it separately.
 #   - member -> a regular resident. No automatic extra role beyond "resident".
 #
 # roles: (optional) — any ADDITIONAL grants beyond what account_type already implies,
-# e.g. "iam:manage-users" or a client-specific "<client_name>:<role>" (the latter
+# e.g. "kc-admin:manage-users" or a client-specific "<client_name>:<role>" (the latter
 # defined inline in app/homeAutomation/clients/<client_name>.yaml, read read-only here
 # via terraform_remote_state).
 users:
@@ -196,14 +196,14 @@ users:
     account_type: member
     enabled: true
 EOF
-(cd users/home-human-automation && tf_main "users/home-human-automation (creates realm roles + looks up iam roles locally, reads app-specific client role_ids from app/homeAutomation/ via terraform_remote_state, creates one keycloak_group per home folder with the resident role auto-granted via keycloak_group_roles plus a keycloak_group_memberships listing that home's members, then reads each home's user.yml via for_each, flattening its users: list into individual records — account_type: owner also implies the admin role, member implies nothing extra beyond resident — and resolving each member's roles against the combined map)" \
+(cd users/home-human-automation && tf_main "users/home-human-automation (creates realm roles + looks up Keycloak admin roles locally, reads app-specific client role_ids from app/homeAutomation/ via terraform_remote_state, creates one keycloak_group per home folder with the resident role auto-granted via keycloak_group_roles plus a keycloak_group_memberships listing that home's members, then reads each home's user.yml via for_each, flattening its users: list into individual records — account_type: owner also implies the admin role, member implies nothing extra beyond resident — and resolving each member's roles against the combined map)" \
   && tf_variables "users/home-human-automation" && tf_outputs "users/home-human-automation")
 readme_stub users/home-human-automation/README.md "users/home-human-automation" \
-"Realm-wide identity concerns for the home-human-automation realm, kept separate from app/homeAutomation/ (application-level clients and app-specific roles only). Owns: the actual members (one user.yml per home, not one file per person — home1 today, add siblings like home2, office later; owner-reviewed only, never self-service — see CODEOWNERS), one Keycloak Group per home (auto-granted the resident role, membership derived from each home's user.yml), global (realm) roles (roles/realm/roles.yml: resident, guest, admin), and IAM/Keycloak-admin role references (roles/iam/roles.yml, looked up on the realm's built-in realm-management client, never created).
+"Realm-wide identity concerns for the home-human-automation realm, kept separate from app/homeAutomation/ (application-level clients and app-specific roles only). Owns: the actual members (one user.yml per home, not one file per person — home1 today, add siblings like home2, office later; owner-reviewed only, never self-service — see CODEOWNERS), one Keycloak Group per home (auto-granted the resident role, membership derived from each home's user.yml), global (realm) roles (roles/realm/roles.yml: resident, guest, admin), and IAM/Keycloak-admin role references (roles/admin/roles.yml, looked up on the realm's built-in realm-management client, never created).
 
-Each member declares account_type: owner or member, not a raw role name — owner automatically also gets admin (this home's admin), member gets nothing extra beyond resident. Scoping admin of which home is the combination of the admin role plus that person's home-group membership — the consuming app must check both claims together, Keycloak doesn't fuse them into one permission on its own. Known gap: group membership isn't included in an issued token by default (needs a Group Membership protocol mapper on a client scope, not configured yet — see this directory's README).
+Each member declares account_type: owner or member, not a raw role name — owner automatically also gets home-admin (this home's admin), member gets nothing extra beyond resident. Scoping admin of which home is the combination of the admin role plus that person's home-group membership — the consuming app must check both claims together, Keycloak doesn't fuse them into one permission on its own. Known gap: group membership isn't included in an issued token by default (needs a Group Membership protocol mapper on a client scope, not configured yet — see this directory's README).
 
-A member's optional roles: list can reference iam:<role> or an app-specific client role defined inline in app/homeAutomation/clients/<client_name>.yaml's roles: key — read read-only here via terraform_remote_state, since those are tied to that app's own client, not a realm-wide concern.
+A member's optional roles: list can reference kc-admin:<role> (Keycloak admin role) or an app-specific client role defined inline in app/homeAutomation/clients/<client_name>.yaml's roles: key — read read-only here via terraform_remote_state, since those are tied to that app's own client, not a realm-wide concern.
 
 Apply order: config/realm/ (creates the realm) -> app/homeAutomation/ (creates clients + client-specific roles this state reads) -> here."
 
@@ -654,7 +654,7 @@ layout:
   under `users/home-human-automation/` — `home1/user.yml` today, listing all members
   under `users:` rather than one file per person; each home also a Keycloak Group
   auto-granted the `resident` role), global (realm) roles (`resident`, `guest`,
-  `admin` — a member's `account_type: owner` also implies `admin`, `member` implies
+  `home-admin` — a member's `account_type: owner` also implies `home-admin`, `member` implies
   nothing extra), and references to Keycloak's own built-in IAM/admin roles.
   Owner-reviewed only, never self-service — real people's PII, unlike client/scope
   requests. Reads app-specific client role IDs from the matching `app/<realm-app>/` state via

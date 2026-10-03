@@ -70,8 +70,8 @@ already-cleared) working tree.
   `user.yml` per home under `users/home-human-automation/` — `home1/user.yml` today,
   listing all of that home's members under `users:`, not one file per person; more
   homes can be added as sibling folders later), global (realm) roles
-  (`roles/realm/roles.yml`: `resident`, `guest`, `admin`), and references to Keycloak's
-  own built-in IAM/admin roles (`roles/iam/roles.yml`, looked up on the realm's
+  (`roles/realm/roles.yml`: `resident`, `guest`, `home-admin`), and references to Keycloak's
+  own built-in IAM/admin roles (`roles/admin/roles.yml`, looked up on the realm's
   automatic `realm-management` client, never created). This is the opposite governance
   choice from `clients/`: owner-reviewed only, never self-service, since these are real
   people's PII rather than app registrations — see CODEOWNERS. The home is inferred
@@ -79,8 +79,8 @@ already-cleared) working tree.
   home is also a **Keycloak Group** of the same name, membership derived automatically
   from that home's `user.yml`, and auto-granted the `resident` role — each member
   declares `account_type: owner` or `member` rather than a raw role name; `owner`
-  automatically also gets `admin` (this home's admin), `member` gets nothing extra
-  ("admin of which home" is the combination of the `admin` role and that person's own
+  automatically also gets `home-admin` (this home's admin), `member` gets nothing extra
+  ("admin of which home" is the combination of the `home-admin` role and that person's own
   home-group membership, which the consuming app
   must check together — Keycloak doesn't fuse them into one permission itself). App-
   specific (client) roles stay embedded in `app/<realm-app>/clients/<client_name>.yaml`'s

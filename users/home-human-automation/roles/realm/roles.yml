@@ -10,12 +10,13 @@ roles:
   - name: guest
     description: Limited, temporary access.
 
-  - name: admin
+  # Assigned individually (account_type: owner) to whichever resident(s) administer a
+  # given home — not auto-granted by group membership, since not every resident of a
+  # home is its admin. "Admin of which home" = this role + the admin's own
+  # home1/home2/... group membership; the consuming app must check both claims
+  # together — Keycloak records them separately, it doesn't fuse them into one
+  # permission on its own.
+  - name: home-admin
     description: >-
-      Administrative access to a home's automation UI/settings. Assigned individually
-      (roles: on that resident's own file) to whichever resident(s) administer a given
-      home — not auto-granted by group membership, since not every resident of a home
-      is its admin. Scoping "admin of which home" comes from combining this role with
-      the admin's own home1/home2/... group membership; the consuming app must check
-      both claims together — Keycloak grants the role and records the membership, it
-      doesn't fuse them into one permission on its own.
+      Administrative access to a home's automation UI/settings. Scoped to a home only
+      in combination with that user's home group membership.

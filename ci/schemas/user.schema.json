@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Home Automation user.yml",
-  "description": "TODO: define the shape of one home's users/home-human-automation/<home>/user.yml: a top-level \"users\" list, each entry {username (required), email (optional), account_type (required, enum: owner | member — owner also implies the admin role), enabled (bool, default true), roles (optional list — additional grants beyond what account_type implies, e.g. iam:<role> or <client_name>:<role>)}. additionalProperties: false; no home/site field on an entry — home is always taken from the folder path. Unlike client.schema.json, this isn't gating self-service access (users/ is owner-reviewed, not self-service) — it exists to catch structural/typo mistakes before apply.",
+  "description": "TODO: define the shape of one home's users/home-human-automation/<home>/user.yml: a top-level \"users\" list, each entry {username (required), email (optional), account_type (required, enum: owner | member — owner also implies the home-admin role), enabled (bool, default true), roles (optional list — additional grants beyond what account_type implies, e.g. kc-admin:<role> (Keycloak admin role) or <client_name>:<role>)}. additionalProperties: false; no home/site field on an entry — home is always taken from the folder path. Unlike client.schema.json, this isn't gating self-service access (users/ is owner-reviewed, not self-service) — it exists to catch structural/typo mistakes before apply.",
   "type": "object",
   "properties": {},
   "required": []

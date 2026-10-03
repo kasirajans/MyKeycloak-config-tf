@@ -12,6 +12,12 @@ variable "description" {
   type        = string
   default     = null
   description = "The description of the role."
+
+  # Keycloak stores this in a varchar(255) column; longer values fail at apply with a 500.
+  validation {
+    condition     = var.description == null || length(var.description) <= 255
+    error_message = "Role description must be 255 characters or fewer (Keycloak column limit)."
+  }
 }
 
 variable "client_id" {
