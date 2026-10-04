@@ -15,6 +15,15 @@ resource "keycloak_user" "this" {
   first_name = var.first_name
   last_name  = var.last_name
   attributes = var.attributes
+
+  dynamic "initial_password" {
+    for_each = var.set_initial_password ? [1] : []
+
+    content {
+      value     = var.initial_password
+      temporary = var.temporary_password
+    }
+  }
 }
 
 resource "keycloak_user_roles" "this" {

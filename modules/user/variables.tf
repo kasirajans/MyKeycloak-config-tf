@@ -15,18 +15,18 @@ variable "enabled" {
 }
 
 variable "email" {
-  type        = string
-  default     = null
+  type    = string
+  default = null
 }
 
 variable "first_name" {
-  type        = string
-  default     = null
+  type    = string
+  default = null
 }
 
 variable "last_name" {
-  type        = string
-  default     = null
+  type    = string
+  default = null
 }
 
 variable "attributes" {
@@ -39,4 +39,23 @@ variable "role_ids" {
   type        = list(string)
   default     = []
   description = "Role IDs (realm or client roles) to assign to this user via keycloak_user_roles."
+}
+
+variable "set_initial_password" {
+  type        = bool
+  default     = false
+  description = "Whether to set initial_password when the user is created. Kept separate from the (sensitive) password itself so it can drive the dynamic block."
+}
+
+variable "initial_password" {
+  type        = string
+  default     = null
+  sensitive   = true
+  description = "Password set when the user is created. Only used if set_initial_password is true."
+}
+
+variable "temporary_password" {
+  type        = bool
+  default     = true
+  description = "true forces the user to change initial_password at first login."
 }

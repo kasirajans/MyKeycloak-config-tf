@@ -1,0 +1,63 @@
+# Every person in the home-human-automation realm, grouped by home.
+# Each top-level key is a home; it becomes a Keycloak group of the same name.
+#
+# account_type decides a user's roles automatically:
+#   owner   -> resident (via the home group) + home-admin
+#   member  -> resident (via the home group)
+#   guest   -> guest only — NOT added to the home group, so no resident access
+#
+# roles: (optional) adds more on top, using names from roles.yml or an app:
+#   kc-admin:<name>      a Keycloak admin permission, e.g. kc-admin:view-users
+#   <client_name>:<role> an app role from app/homeAutomation, e.g. thermostat-ui:viewer
+#
+# Password (optional, both default to true) — only applied when the user is created:
+#   random_password: true     Terraform generates a random starting password.
+#                    false    no password set; set one yourself in Keycloak.
+#   temporary_password: true  the user must change it at first login.
+#                       false the password stays as-is (handy for test users/scripts).
+# Read the generated passwords with: terraform output -json initial_passwords
+#
+# Real people's details (PII) — changes here are owner-reviewed only (see README).
+
+kraaj:
+  - username: kraaj
+    first_name: kraaj
+    last_name: coder
+    email: kraaj.coder@kraaj.com
+    account_type: owner          # -> resident + home-admin
+    roles:
+      - kc-admin:view-users      # can also see users in Keycloak's admin console
+
+  - username: john.doe
+    first_name: John
+    last_name: Doe
+    email: john.doe@kraaj.com
+    account_type: member         # -> resident
+
+  - username: mike.johnson
+    first_name: Mike
+    last_name: Johnson
+    email: mike.johnson@kraaj.com
+    account_type: guest          # -> guest
+    temporary_password: false    # test user: keep the random password, no change at login
+
+ram:
+  - username: sarah.miller
+    first_name: Sarah
+    last_name: Miller
+    email: sarah.miller@ram.com
+    account_type: owner          # -> resident + home-admin
+    roles:
+      - kc-admin:view-users      # can also see users in Keycloak's admin console
+
+  - username: priya.sharma
+    first_name: Priya
+    last_name: Sharma
+    email: priya.sharma@ram.com
+    account_type: member         # -> resident
+
+  - username: arjun.kumar
+    first_name: Arjun
+    last_name: Kumar
+    email: arjun.kumar@ram.com
+    account_type: guest          # -> guest

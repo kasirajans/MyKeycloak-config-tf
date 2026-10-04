@@ -1,0 +1,42 @@
+# Every role a user in the home-human-automation realm can be given, grouped by type.
+#
+#   realm:     Roles for THIS realm (home automation), not tied to any one app.
+#              Created by this Terraform. Give one to a user by plain name,
+#              e.g. roles: [guest]
+#
+#   kc-admin:  Permissions inside Keycloak ITSELF (managing users, clients, ...), not in
+#              the home-automation app. Already built into Keycloak (on the realm's
+#              "realm-management" client), so they are only looked up, never created.
+#              Pick names from Keycloak's list: realm-admin, manage-users, view-users,
+#              manage-clients, view-clients, manage-realm, view-realm,
+#              manage-identity-providers, manage-authorization.
+#              Give one to a user as "kc-admin:<name>", e.g. roles: [kc-admin:view-users]
+#
+# Client (app-specific) roles are NOT listed here. They are defined with their app, in
+# app/homeAutomation/clients/<client_name>.yaml under roles:, and given to a user as
+# "<client_name>:<role>", e.g. roles: [thermostat-ui:viewer].
+
+realm:
+  - name: resident
+    description: >-
+      Full resident access to home automation. Auto-granted to every member of a
+      home's group (see main.tf) — do not also list this individually on a resident's
+      own roles: unless they're not a group member for some reason.
+
+  - name: guest
+    description: Limited, temporary access.
+
+  # Assigned individually (account_type: owner) to whichever resident(s) administer a
+  # given home — not auto-granted by group membership, since not every resident of a
+  # home is its admin. "Admin of which home" = this role + the admin's own
+  # home1/home2/... group membership; the consuming app must check both claims
+  # together — Keycloak records them separately, it doesn't fuse them into one
+  # permission on its own.
+  - name: home-admin
+    description: >-
+      Administrative access to a home's automation UI/settings. Scoped to a home only
+      in combination with that user's home group membership.
+
+kc-admin:
+  - name: manage-users
+  - name: view-users

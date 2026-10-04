@@ -1,13 +1,4 @@
 locals {
-  # All roles in one file — roles.yml — grouped under one key per role type:
-  #   - realm:    global (realm) roles, created here since they're a realm-wide
-  #               identity concern, not tied to any one app.
-  #   - kc-admin: Keycloak's own built-in admin roles (what a user can do in
-  #               Keycloak/the IAM system itself), looked up, never created.
-  roles_data       = fileexists("${path.module}/roles.yml") ? yamldecode(file("${path.module}/roles.yml")) : {}
-  realm_roles      = { for r in try(local.roles_data.realm, []) : r.name => r }
-  admin_role_names = toset([for r in try(local.roles_data["kc-admin"], []) : r.name])
-
   # All users in one file — users.yml — grouped under one key per home. Each home also
   # becomes a Keycloak group (below).
   users_data = fileexists("${path.module}/users.yml") ? yamldecode(file("${path.module}/users.yml")) : {}
@@ -40,26 +31,31 @@ locals {
     home => [for k, u in local.users : k if u.home == home && u.account_type != "guest"]
   }
 
-  # App-specific (client) roles are NOT owned here — they stay in app/homeAutomation/
-  # (app-level, tied to that app's own clients) and are read via remote state.
-  client_role_ids = try(data.terraform_remote_state.home_automation_app[0].outputs.role_ids, {})
-
-  # Combined lookup: realm roles by plain name, Keycloak admin roles as "kc-admin:<name>",
-  # client roles as "<client_name>:<role>" (already that shape in the remote output).
-  # Note "home-admin" (realm role) and "kc-admin:<name>" are different keys.
+  # Combined lookup: realm roles by plain name and Keycloak admin roles as
+  # "kc-admin:<name>" (both from ../roles), client roles as "<client_name>:<role>"
+  # (from app/homeAutomation).
   role_ids = merge(
-    { for name, m in module.realm_role : name => m.id },
-    { for name, d in data.keycloak_role.admin : "kc-admin:${name}" => d.id },
-    local.client_role_ids,
+    data.terraform_remote_state.roles.outputs.role_ids,
+    try(data.terraform_remote_state.home_automation_app[0].outputs.role_ids, {}),
   )
 }
 
+# Realm and Keycloak admin roles live in ../roles' own state — read-only here, this
+# state never creates or modifies them. Apply ../roles first.
+data "terraform_remote_state" "roles" {
+  backend = "local"
+
+  config = {
+    path = "${path.module}/../roles/terraform.tfstate"
+  }
+}
+
 # App-specific client roles live in app/homeAutomation/'s state (see that directory's
-# README) — read-only here, this state never creates or modifies them. Only read once
-# that state exists; until then there are no client roles to grant, and referencing
-# one from a user's roles: fails on the role_ids lookup below.
+# README) — read-only here. Only read once that state exists; until then there are no
+# client roles to grant, and referencing one from a user's roles: fails on the
+# role_ids lookup below.
 locals {
-  home_automation_state = "${path.module}/../../app/homeAutomation/terraform.tfstate"
+  home_automation_state = "${path.module}/../../../app/homeAutomation/terraform.tfstate"
 }
 
 data "terraform_remote_state" "home_automation_app" {
@@ -71,35 +67,12 @@ data "terraform_remote_state" "home_automation_app" {
   }
 }
 
-# Keycloak's own built-in realm-management client, present automatically on every realm.
-data "keycloak_openid_client" "realm_management" {
-  realm_id  = var.realm_id
-  client_id = "realm-management"
-}
-
-data "keycloak_role" "admin" {
-  for_each = local.admin_role_names
-
-  realm_id  = var.realm_id
-  client_id = data.keycloak_openid_client.realm_management.id
-  name      = each.key
-}
-
-module "realm_role" {
-  source   = "../../modules/role"
-  for_each = local.realm_roles
-
-  realm_id    = var.realm_id
-  name        = each.value.name
-  description = try(each.value.description, null)
-}
-
 # One Keycloak group per home. Every member auto-gets the "resident" role via
 # keycloak_group_roles (inside modules/group). "home-admin" (account_type: owner) and any
 # other roles: stay individual grants; scoping "admin of which home" is the combination
 # of the home-admin role + this group membership, checked by the consuming app.
 module "home_group" {
-  source   = "../../modules/group"
+  source   = "../../../modules/group"
   for_each = local.homes
 
   realm_id = var.realm_id
@@ -116,8 +89,22 @@ resource "keycloak_group_memberships" "home" {
   members = [for k in local.member_keys_by_home[each.value] : module.user[k].username]
 }
 
+# A random starting password for every user with random_password: true (the default).
+# Read them with: terraform output -json initial_passwords
+resource "random_password" "user" {
+  for_each = { for k, u in local.users : k => u if try(u.random_password, true) }
+
+  length           = 16
+  special          = true
+  override_special = "!@#%*-_+"
+  min_upper        = 1
+  min_lower        = 1
+  min_numeric      = 1
+  min_special      = 1
+}
+
 module "user" {
-  source   = "../../modules/user"
+  source   = "../../../modules/user"
   for_each = local.users
 
   realm_id   = var.realm_id
@@ -127,6 +114,11 @@ module "user" {
   last_name  = try(each.value.last_name, null)
   enabled    = try(each.value.enabled, true)
   attributes = { site = each.value.home }
+
+  # Only applied when the user is first created — Keycloak owns the password after that.
+  set_initial_password = try(each.value.random_password, true)
+  initial_password     = try(random_password.user[each.key].result, null)
+  temporary_password   = try(each.value.temporary_password, true)
 
   role_ids = [for r in each.value.resolved_roles : local.role_ids[r]]
 }
