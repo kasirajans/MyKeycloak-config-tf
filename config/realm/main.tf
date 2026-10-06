@@ -2,9 +2,9 @@ locals {
   realms_data = yamldecode(file("${path.module}/realms.yml"))
   realms      = { for r in local.realms_data.realms : r.realm => r }
 
-  # Mail servers, defined once in config/smtp/smtp.yml and picked per realm by name
-  # (smtp: <name> in realms.yml). An unknown name fails here with "key not found".
-  smtp_servers = try(yamldecode(file("${path.module}/../smtp/smtp.yml")).servers, {})
+  # Mail servers, defined once under smtp_servers: in realms.yml and picked per realm by
+  # name (smtp: <name>). An unknown name fails here with "key not found".
+  smtp_servers = try(local.realms_data.smtp_servers, {})
 }
 
 module "realm" {

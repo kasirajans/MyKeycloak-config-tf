@@ -11,6 +11,38 @@ three was chosen over isolating each into its own root module — see the top-le
 README's "State boundaries" section for the general per-directory-state principle this
 is a deliberate exception to.
 
+## Email (SMTP)
+
+Mail servers are listed once under `smtp_servers:` at the bottom of `realms.yml`, and a
+realm picks one by name:
+
+```yaml
+realms:
+  - realm: home-human-automation
+    smtp: mailpit
+
+smtp_servers:
+  mailpit:
+    host: mailpit
+    port: 1025
+    from: noreply@kraaj.studio
+```
+
+Terraform copies the chosen server into that realm's Email settings in Keycloak (Realm
+settings → Email); Keycloak never reads the YAML itself. A realm without `smtp:` sends no
+email, so "verify email" and "forgot password" fail there.
+
+`mailpit` is the local fake mail server from `E:\MyIAM` (inbox: <http://localhost:8025>),
+for development only. For a real server with a login, set `username` in `smtp_servers:` and
+its password outside git, keyed by the server's name:
+
+```hcl
+# terraform.tfvars (gitignored)
+smtp_passwords = {
+  production = "..."
+}
+```
+
 ## Prerequisites
 
 - Terraform >= 1.5

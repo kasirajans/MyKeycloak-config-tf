@@ -10,7 +10,7 @@ realms:
     login_with_email_allowed: true
     ssl_required: external
     access_token_lifespan: 5m
-    smtp: mailpit                # config/smtp/smtp.yml
+    smtp: mailpit                # a server from smtp_servers: below
 
   - realm: home-human-automation
     enabled: true
@@ -25,7 +25,7 @@ realms:
     login_with_email_allowed: true
     ssl_required: external
     access_token_lifespan: 5m
-    smtp: mailpit                # config/smtp/smtp.yml
+    smtp: mailpit                # a server from smtp_servers: below
 
   - realm: ai-agent
     enabled: true
@@ -39,3 +39,34 @@ realms:
     login_with_email_allowed: false
     ssl_required: all
     access_token_lifespan: 2m
+
+# Mail servers Keycloak sends email through (verify email, forgot password, ...).
+# A realm picks one by name with smtp: <name>; a realm without smtp: sends no email.
+#
+# Fields per server:
+#   host, port           where to connect (from inside Keycloak's container)
+#   from                 sender address on every email
+#   from_display_name    (optional) sender name shown in the inbox
+#   reply_to             (optional) where replies go
+#   ssl                  (optional, default false) TLS from the start (usually port 465)
+#   starttls             (optional, default false) upgrade to TLS (usually port 587)
+#   username             (optional) SMTP login. Its password is NEVER put here: set it in
+#                        smtp_passwords = { <server name> = "..." } in terraform.tfvars
+#                        (gitignored) or TF_VAR_smtp_passwords.
+smtp_servers:
+  # Local fake mail server from E:\MyIAM (docker compose service "mailpit").
+  # Catches everything; read it at http://localhost:8025. Development only.
+  mailpit:
+    host: mailpit
+    port: 1025
+    from: noreply@kraaj.studio
+    from_display_name: Kraaj IAM (dev)
+
+  # Example real provider: copy, rename and fill in, then point a realm at it.
+  # production:
+  #   host: smtp.example.com
+  #   port: 587
+  #   starttls: true
+  #   from: noreply@kraaj.studio
+  #   from_display_name: Kraaj IAM
+  #   username: noreply@kraaj.studio
