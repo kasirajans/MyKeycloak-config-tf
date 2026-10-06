@@ -1,0 +1,18 @@
+# Example public (PKCE) client. Copy to <client_id>.yaml — the file name becomes the
+# client_id. _example* files are never applied.
+#
+# Public = runs in the user's browser or on their phone, so it can't keep a secret.
+# Users log in through Keycloak; PKCE (S256) is always on; there is no client secret.
+
+name: Example SPA
+description: Browser app for residents.
+owner_team: home
+project: home-automation
+
+root_url: http://localhost:3000
+redirect_uris:                # where Keycloak may send the user back after login
+  - http://localhost:3000/*
+post_logout_redirect_uris:    # where Keycloak may send the user back after logout
+  - http://localhost:3000/*
+web_origins:                  # CORS; "+" = every origin in redirect_uris (default)
+  - "+"

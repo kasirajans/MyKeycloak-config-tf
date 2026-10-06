@@ -25,6 +25,7 @@ terraform.rc
 !**/package.json
 !**/tsconfig.json
 !ci/schemas/*.json
+!api-tests/*.json
 
 # User Credentials Exports
 user_credentials.csv

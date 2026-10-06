@@ -1,0 +1,32 @@
+# Mail servers Keycloak can send through (verify email, forgot password, ...).
+# A realm picks one by name in config/realm/realms.yml:   smtp: mailpit
+# A realm without smtp: sends no email.
+#
+# Fields per server:
+#   host, port           where to connect (from inside Keycloak's container)
+#   from                 sender address on every email
+#   from_display_name    (optional) sender name shown in the inbox
+#   reply_to             (optional) where replies go
+#   ssl                  (optional, default false) TLS from the start (usually port 465)
+#   starttls             (optional, default false) upgrade to TLS (usually port 587)
+#   username             (optional) SMTP login. Its password is NEVER put here: set it in
+#                        smtp_passwords = { <server name> = "..." } in
+#                        config/realm/terraform.tfvars (gitignored) or TF_VAR_smtp_passwords.
+
+servers:
+  # Local fake mail server from E:\MyIAM (docker compose service "mailpit").
+  # Catches everything; read it at http://localhost:8025. Development only.
+  mailpit:
+    host: mailpit
+    port: 1025
+    from: noreply@kraaj.studio
+    from_display_name: Kraaj IAM (dev)
+
+  # Example real provider — copy, rename and fill in, then point a realm at it.
+  # production:
+  #   host: smtp.example.com
+  #   port: 587
+  #   starttls: true
+  #   from: noreply@kraaj.studio
+  #   from_display_name: Kraaj IAM
+  #   username: noreply@kraaj.studio

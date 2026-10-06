@@ -1,0 +1,20 @@
+# Example private (confidential) client. Copy to <client_id>.yaml — the file name
+# becomes the client_id. _example* files are never applied.
+#
+# Private = runs on a server, so it can keep a secret. Keycloak generates the secret;
+# read it with: terraform output -json client_secrets
+
+name: Example backend
+description: Backend service that calls home automation APIs as itself.
+owner_team: home
+project: home-automation
+
+service_accounts: true        # client-credentials grant (default true)
+standard_flow: false          # true = server-side web app that also logs users in (PKCE on)
+
+# Only needed when standard_flow: true
+# root_url: https://backend.example.com
+# redirect_uris:
+#   - https://backend.example.com/callback
+# post_logout_redirect_uris:
+#   - https://backend.example.com/

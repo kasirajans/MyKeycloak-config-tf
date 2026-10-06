@@ -34,18 +34,18 @@ variable "reset_password_allowed" {
 }
 
 variable "remember_me" {
-  type        = bool
-  default     = null
+  type    = bool
+  default = null
 }
 
 variable "verify_email" {
-  type        = bool
-  default     = null
+  type    = bool
+  default = null
 }
 
 variable "login_with_email_allowed" {
-  type        = bool
-  default     = null
+  type    = bool
+  default = null
 }
 
 variable "ssl_required" {
@@ -58,4 +58,26 @@ variable "access_token_lifespan" {
   type        = string
   default     = null
   description = "e.g. \"2m\". Keep short for an M2M/token-exchange realm — tokens are meant to be narrowly scoped and short-lived per hop."
+}
+
+variable "smtp_server" {
+  type = object({
+    host              = string
+    port              = number
+    from              = string
+    from_display_name = optional(string)
+    reply_to          = optional(string)
+    ssl               = optional(bool, false)
+    starttls          = optional(bool, false)
+    username          = optional(string)
+  })
+  default     = null
+  description = "Mail server this realm sends email through (verify email, forgot password). null = no email. Set username to log in; the password goes in smtp_password."
+}
+
+variable "smtp_password" {
+  type        = string
+  default     = null
+  sensitive   = true
+  description = "Password for smtp_server.username. Only used when username is set."
 }

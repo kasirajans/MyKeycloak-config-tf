@@ -24,6 +24,13 @@ resource "keycloak_user" "this" {
       temporary = var.temporary_password
     }
   }
+
+  lifecycle {
+    # Keycloak owns required actions: a temporary password adds UPDATE_PASSWORD, and it's
+    # cleared once the user sets a new one. Without this, every plan would remove it and
+    # turn temporary passwords into permanent ones.
+    ignore_changes = [required_actions]
+  }
 }
 
 resource "keycloak_user_roles" "this" {

@@ -32,7 +32,7 @@ variable "last_name" {
 variable "attributes" {
   type        = map(string)
   default     = {}
-  description = "Custom user attributes, e.g. { site = \"apartment\" } for app/homeAutomation/users/<site>/ ownership tracking."
+  description = "Custom user attributes. Each must be declared in the realm's user profile (or unmanaged attributes enabled); otherwise Keycloak 24+ silently drops it and every plan shows a change."
 }
 
 variable "role_ids" {

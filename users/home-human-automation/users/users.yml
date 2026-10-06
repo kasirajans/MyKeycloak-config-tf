@@ -1,14 +1,14 @@
 # Every person in the home-human-automation realm, grouped by home.
 # Each top-level key is a home; it becomes a Keycloak group of the same name.
 #
-# account_type decides a user's roles automatically:
+# account_type decides a user's roles automatically — defined in account_types.yml:
 #   owner   -> resident (via the home group) + home-admin
 #   member  -> resident (via the home group)
 #   guest   -> guest only — NOT added to the home group, so no resident access
 #
 # roles: (optional) adds more on top, using names from roles.yml or an app:
 #   kc-admin:<name>      a Keycloak admin permission, e.g. kc-admin:view-users
-#   <client_name>:<role> an app role from app/homeAutomation, e.g. thermostat-ui:viewer
+#   <client_name>:<role> an app role from app/home-human-automation, e.g. thermostat-ui:viewer
 #
 # Password (optional, both default to true) — only applied when the user is created:
 #   random_password: true     Terraform generates a random starting password.

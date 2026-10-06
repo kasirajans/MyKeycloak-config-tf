@@ -1,0 +1,32 @@
+# What each account_type in users.yml means. Edit this file, not main.tf, to change
+# what an owner/member/guest gets or to add a new account type.
+#
+# home_group_roles: roles every member of a home's group gets, through the group.
+#
+# account_types:
+#   <name>:
+#     home_group: true   the user joins their home's group (so gets home_group_roles)
+#                 false  the user is kept out of it
+#     roles:             roles given to the user directly, on top of that. Same names
+#                        as a user's roles: in users.yml (realm role, kc-admin:<name>,
+#                        or <client_name>:<role>).
+#
+# Every role named here must already exist (../roles for realm roles), or plan fails.
+
+home_group_roles:
+  - resident
+
+account_types:
+  owner:                 # runs the home: resident + home-admin
+    home_group: true
+    roles:
+      - home-admin
+
+  member:                # lives in the home: resident
+    home_group: true
+    roles: []
+
+  guest:                 # visitor: guest only, no resident access
+    home_group: false
+    roles:
+      - guest

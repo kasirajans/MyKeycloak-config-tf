@@ -4,72 +4,73 @@ locals {
   users_data = fileexists("${path.module}/users.yml") ? yamldecode(file("${path.module}/users.yml")) : {}
   homes      = toset(keys(local.users_data))
 
-  # Flatten every home's list into individual records, tagged with their home and with
-  # roles resolved from account_type:
-  #   - "owner"  -> also gets "home-admin" (this home's admin), on top of "resident" from
-  #                 group membership.
-  #   - "member" -> no automatic extra role beyond "resident".
-  #   - "guest"  -> gets "guest", and is left out of the home group, so no "resident".
-  # roles: on a user entry adds further grants on top of that (kc-admin:*, <client>:<role>).
+  # What each account_type means — which roles it gives and whether the user joins their
+  # home's group — lives in account_types.yml, not here.
+  account_types_data = yamldecode(file("${path.module}/account_types.yml"))
+  account_types      = local.account_types_data.account_types
+  home_group_roles   = try(local.account_types_data.home_group_roles, [])
+
+  # Flatten every home's list into individual records, tagged with their home, whether
+  # they join the home group, and their direct roles: the account type's roles plus the
+  # user's own roles: (kc-admin:*, <client>:<role>, ...). An account_type missing from
+  # account_types.yml fails here with "key not found".
   users = merge([
     for home, members in local.users_data : {
       for u in members :
       "${home}/${u.username}" => merge(u, {
-        home = home
-        resolved_roles = concat(
-          u.account_type == "owner" ? ["home-admin"] : [],
-          u.account_type == "guest" ? ["guest"] : [],
-          try(u.roles, [])
-        )
+        home           = home
+        in_home_group  = merge({ home_group = false }, local.account_types[u.account_type]).home_group
+        resolved_roles = concat(merge({ roles = [] }, local.account_types[u.account_type]).roles, try(u.roles, []))
       })
     }
   ]...)
 
-  # Owners and members per home (not guests), for each home's keycloak_group_memberships.
+  # Users per home who join its group (home_group: true), for keycloak_group_memberships.
   member_keys_by_home = {
     for home in local.homes :
-    home => [for k, u in local.users : k if u.home == home && u.account_type != "guest"]
+    home => [for k, u in local.users : k if u.home == home && u.in_home_group]
   }
 
-  # Combined lookup: realm roles by plain name and Keycloak admin roles as
-  # "kc-admin:<name>" (both from ../roles), client roles as "<client_name>:<role>"
-  # (from app/homeAutomation).
-  role_ids = merge(
-    data.terraform_remote_state.roles.outputs.role_ids,
-    try(data.terraform_remote_state.home_automation_app[0].outputs.role_ids, {}),
-  )
-}
+  # Every role referenced anywhere above (users' roles plus home_group_roles),
+  # parsed into where it lives in Keycloak:
+  #   "<name>"            a realm role (from ../roles)
+  #   "kc-admin:<name>"   a Keycloak admin role on the built-in realm-management client
+  #   "<client>:<name>"   an app role on that client (from app/home-human-automation)
+  role_refs = toset(concat(local.home_group_roles, flatten([for u in local.users : u.resolved_roles])))
 
-# Realm and Keycloak admin roles live in ../roles' own state — read-only here, this
-# state never creates or modifies them. Apply ../roles first.
-data "terraform_remote_state" "roles" {
-  backend = "local"
-
-  config = {
-    path = "${path.module}/../roles/terraform.tfstate"
+  roles = {
+    for ref in local.role_refs : ref => {
+      client = length(split(":", ref)) > 1 ? (split(":", ref)[0] == "kc-admin" ? "realm-management" : split(":", ref)[0]) : null
+      name   = element(split(":", ref), length(split(":", ref)) - 1)
+    }
   }
+  role_clients = toset(compact([for r in local.roles : r.client]))
+
+  role_ids = { for ref, d in data.keycloak_role.role : ref => d.id }
 }
 
-# App-specific client roles live in app/homeAutomation/'s state (see that directory's
-# README) — read-only here. Only read once that state exists; until then there are no
-# client roles to grant, and referencing one from a user's roles: fails on the
-# role_ids lookup below.
-locals {
-  home_automation_state = "${path.module}/../../../app/homeAutomation/terraform.tfstate"
+# Roles are looked up by name in Keycloak itself — no links to other folders' state
+# files, so this folder works the same for any realm and survives folders moving. A role
+# that doesn't exist yet fails the plan; create it first (../roles for realm roles,
+# app/home-human-automation for app roles).
+data "keycloak_openid_client" "role_client" {
+  for_each = local.role_clients
+
+  realm_id  = var.realm_id
+  client_id = each.key
 }
 
-data "terraform_remote_state" "home_automation_app" {
-  count   = fileexists(local.home_automation_state) ? 1 : 0
-  backend = "local"
+data "keycloak_role" "role" {
+  for_each = local.roles
 
-  config = {
-    path = local.home_automation_state
-  }
+  realm_id  = var.realm_id
+  client_id = each.value.client != null ? data.keycloak_openid_client.role_client[each.value.client].id : null
+  name      = each.value.name
 }
 
-# One Keycloak group per home. Every member auto-gets the "resident" role via
-# keycloak_group_roles (inside modules/group). "home-admin" (account_type: owner) and any
-# other roles: stay individual grants; scoping "admin of which home" is the combination
+# One Keycloak group per home. Every member gets home_group_roles (account_types.yml)
+# via keycloak_group_roles (inside modules/group). An account type's own roles (e.g.
+# "home-admin" for owners) and any other roles: stay individual grants; scoping "admin of which home" is the combination
 # of the home-admin role + this group membership, checked by the consuming app.
 module "home_group" {
   source   = "../../../modules/group"
@@ -77,7 +78,7 @@ module "home_group" {
 
   realm_id = var.realm_id
   name     = each.value
-  role_ids = [local.role_ids["resident"]]
+  role_ids = [for r in local.home_group_roles : local.role_ids[r]]
 }
 
 resource "keycloak_group_memberships" "home" {
@@ -113,7 +114,9 @@ module "user" {
   first_name = try(each.value.first_name, null)
   last_name  = try(each.value.last_name, null)
   enabled    = try(each.value.enabled, true)
-  attributes = { site = each.value.home }
+  # No custom attributes: the realm's user profile doesn't declare any, so Keycloak would
+  # silently drop them (and plan would show a change every run). A user's home is their
+  # home-group membership.
 
   # Only applied when the user is first created — Keycloak owns the password after that.
   set_initial_password = try(each.value.random_password, true)

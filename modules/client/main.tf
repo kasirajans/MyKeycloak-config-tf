@@ -1,22 +1,52 @@
-# TODO: define the keycloak_openid_client resource(s) for this module, parameterized by
-# var.auth_pattern:
-#   - "client-credentials": standard service-account client, no token-exchange config.
-#   - "token-exchange": enable standard token exchange (GA by default in current
-#     Keycloak — no feature flag needed) and set up this client's audience/client-scope
-#     mapping so that var.exchange_from clients legitimately receive this client_id in
-#     their own token's aud claim. That aud-on-subject_token requirement is what Keycloak
-#     actually checks at exchange time — there is NO separate "permitted to exchange to"
-#     admin permission for standard (V2) token exchange; do not scaffold one. Add a
-#     Client Policy resource here only if you need extra conditional restrictions beyond
-#     the aud check.
-#   - "ciba": set the CIBA grant on the client (native GA grant) plus wire it to an
-#     AuthenticationChannelProvider SPI implementation for actually delivering the async
-#     approval — Keycloak does not ship a push-notification backend, that SPI is custom
-#     code living outside this repo, this module only flips the client-side grant on.
+terraform {
+  required_providers {
+    keycloak = {
+      source  = "keycloak/keycloak"
+      version = "~> 5.0"
+    }
+  }
+}
+
+# One OpenID client, either:
+#   - PUBLIC:       a browser/mobile app that can't keep a secret. Authorization code
+#                   flow + PKCE (S256), no client secret, no service account.
+#   - CONFIDENTIAL: a backend that can keep a secret. Keycloak generates the secret;
+#                   optionally a service account for client-credentials.
 #
-# Ownership tracking (var.owner_team, var.project): set them as Keycloak custom client
-# attributes (the openid client resource's attributes/extra-config map — check the exact
-# argument name for the Keycloak Terraform provider version in use) so ownership is
-# visible/queryable directly on the client in Keycloak, not just inferable from this
-# repo's folder layout. client_id itself is passed in already computed by the caller
-# (<team>-<project>-<name>) — this module does not compute it, only sets attributes.
+# Not implemented yet (needed by app/aiAgent/): token-exchange audience wiring and the
+# CIBA grant. Add them here as extra inputs rather than a separate module.
+locals {
+  is_public = var.access_type == "PUBLIC"
+
+  # Ownership tracking: stored as custom client attributes so it's visible on the
+  # client in Keycloak, not just inferable from this repo's folder layout.
+  ownership_attributes = merge(
+    var.owner_team != null ? { owner_team = var.owner_team } : {},
+    var.project != null ? { project = var.project } : {},
+  )
+}
+
+resource "keycloak_openid_client" "this" {
+  realm_id    = var.realm_id
+  client_id   = var.client_id
+  name        = var.name
+  description = var.description
+  enabled     = var.enabled
+
+  access_type = var.access_type
+
+  standard_flow_enabled        = var.standard_flow_enabled
+  implicit_flow_enabled        = false
+  direct_access_grants_enabled = false
+  service_accounts_enabled     = local.is_public ? false : var.service_accounts_enabled
+
+  # PKCE is always on for public clients; optional for confidential ones.
+  pkce_code_challenge_method = local.is_public ? "S256" : var.pkce_code_challenge_method
+
+  root_url                        = var.root_url
+  valid_redirect_uris             = var.valid_redirect_uris
+  valid_post_logout_redirect_uris = var.valid_post_logout_redirect_uris
+  web_origins                     = var.web_origins
+
+  extra_config = merge(local.ownership_attributes, var.extra_config)
+}

@@ -13,14 +13,14 @@
 #              Give one to a user as "kc-admin:<name>", e.g. roles: [kc-admin:view-users]
 #
 # Client (app-specific) roles are NOT listed here. They are defined with their app, in
-# app/homeAutomation/clients/<client_name>.yaml under roles:, and given to a user as
+# app/home-human-automation/<client_name>.yaml under roles:, and given to a user as
 # "<client_name>:<role>", e.g. roles: [thermostat-ui:viewer].
 
 realm:
   - name: resident
     description: >-
       Full resident access to home automation. Auto-granted to every member of a
-      home's group (see main.tf) — do not also list this individually on a resident's
+      home's group (home_group_roles in ../users/account_types.yml) — do not also list this individually on a resident's
       own roles: unless they're not a group member for some reason.
 
   - name: guest

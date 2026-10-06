@@ -1,0 +1,486 @@
+{
+  "info": {
+    "_postman_id": "99c9d3c7-e9a6-4821-9160-492196c2e624",
+    "name": "Keycloak PKCE",
+    "description": "Authorization code + PKCE against a Keycloak realm. Pick the environment for the realm to test (one environment per realm). See api-tests/README.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0. OIDC discovery",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Realm exists', () => pm.response.to.have.status(200));",
+              "pm.test('Supports PKCE S256', () => pm.expect(pm.response.json().code_challenge_methods_supported).to.include('S256'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/realms/{{realm}}/.well-known/openid-configuration",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "realms",
+            "{{realm}}",
+            ".well-known",
+            "openid-configuration"
+          ]
+        },
+        "description": "The realm's endpoints. Check that issuer and authorization_endpoint use the URL your browser can reach."
+      }
+    },
+    {
+      "name": "A. Built-in OAuth2 helper",
+      "description": "Uses the tool's own OAuth 2.0 helper: open this folder's Auth tab, click 'Get New Access Token', log in in the popup, then 'Use Token'. Requests here inherit that token.",
+      "auth": {
+        "type": "oauth2",
+        "oauth2": [
+          {
+            "key": "grant_type",
+            "value": "authorization_code_with_pkce",
+            "type": "string"
+          },
+          {
+            "key": "authUrl",
+            "value": "{{baseUrl}}/realms/{{realm}}/protocol/openid-connect/auth",
+            "type": "string"
+          },
+          {
+            "key": "accessTokenUrl",
+            "value": "{{baseUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+            "type": "string"
+          },
+          {
+            "key": "clientId",
+            "value": "{{clientId}}",
+            "type": "string"
+          },
+          {
+            "key": "redirect_uri",
+            "value": "{{redirectUri}}",
+            "type": "string"
+          },
+          {
+            "key": "scope",
+            "value": "{{scope}}",
+            "type": "string"
+          },
+          {
+            "key": "challengeAlgorithm",
+            "value": "S256",
+            "type": "string"
+          },
+          {
+            "key": "client_authentication",
+            "value": "body",
+            "type": "string"
+          },
+          {
+            "key": "useBrowser",
+            "value": false,
+            "type": "boolean"
+          },
+          {
+            "key": "tokenName",
+            "value": "{{realm}} PKCE token",
+            "type": "string"
+          },
+          {
+            "key": "addTokenTo",
+            "value": "header",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "Userinfo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Logged in', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "inherit"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/realms/{{realm}}/protocol/openid-connect/userinfo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "realms",
+                "{{realm}}",
+                "protocol",
+                "openid-connect",
+                "userinfo"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "B. Manual PKCE flow (step by step)",
+      "description": "Every PKCE step as a plain request, so you can see each value. Works in Postman and Bruno without the OAuth helper.",
+      "auth": {
+        "type": "noauth"
+      },
+      "item": [
+        {
+          "name": "1. Build login URL (open it in a browser)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Generates a fresh PKCE pair for this login. Uses crypto-js (built into Postman and Bruno).",
+                  "const cj = require('crypto-js');",
+                  "const b64url = (words) => cj.enc.Base64.stringify(words).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');",
+                  "",
+                  "const codeVerifier = b64url(cj.lib.WordArray.random(32));",
+                  "const codeChallenge = b64url(cj.SHA256(codeVerifier));",
+                  "const state = b64url(cj.lib.WordArray.random(16));",
+                  "",
+                  "pm.environment.set('codeVerifier', codeVerifier);",
+                  "pm.environment.set('codeChallenge', codeChallenge);",
+                  "pm.environment.set('state', state);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// This request only builds the login URL. Open it in a browser, log in, then copy the",
+                  "// ?code=... value from the address bar (the redirect page itself won't load) into the",
+                  "// authCode environment variable and run step 2 within about a minute.",
+                  "const env = (k) => pm.environment.get(k);",
+                  "const loginUrl = env('baseUrl') + '/realms/' + env('realm') + '/protocol/openid-connect/auth'",
+                  "  + '?client_id=' + encodeURIComponent(env('clientId'))",
+                  "  + '&response_type=code'",
+                  "  + '&redirect_uri=' + encodeURIComponent(env('redirectUri'))",
+                  "  + '&scope=' + encodeURIComponent(env('scope'))",
+                  "  + '&state=' + env('state')",
+                  "  + '&code_challenge=' + env('codeChallenge')",
+                  "  + '&code_challenge_method=S256';",
+                  "pm.environment.set('loginUrl', loginUrl);",
+                  "console.log('Open this URL in a browser:\\n' + loginUrl);",
+                  "",
+                  "pm.test('Keycloak shows its login page', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/realms/{{realm}}/protocol/openid-connect/auth?client_id={{clientId}}&response_type=code&redirect_uri={{redirectUri}}&scope={{scope}}&state={{state}}&code_challenge={{codeChallenge}}&code_challenge_method=S256",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "realms",
+                "{{realm}}",
+                "protocol",
+                "openid-connect",
+                "auth"
+              ],
+              "query": [
+                {
+                  "key": "client_id",
+                  "value": "{{clientId}}"
+                },
+                {
+                  "key": "response_type",
+                  "value": "code"
+                },
+                {
+                  "key": "redirect_uri",
+                  "value": "{{redirectUri}}"
+                },
+                {
+                  "key": "scope",
+                  "value": "{{scope}}"
+                },
+                {
+                  "key": "state",
+                  "value": "{{state}}"
+                },
+                {
+                  "key": "code_challenge",
+                  "value": "{{codeChallenge}}"
+                },
+                {
+                  "key": "code_challenge_method",
+                  "value": "S256"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Exchange code for tokens",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Tokens issued', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "if (body.access_token) {",
+                  "  pm.environment.set('accessToken', body.access_token);",
+                  "  pm.environment.set('refreshToken', body.refresh_token || '');",
+                  "  pm.environment.set('idToken', body.id_token || '');",
+                  "  pm.environment.set('authCode', ''); // codes are single-use",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "authorization_code",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{clientId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "code",
+                  "value": "{{authCode}}",
+                  "type": "text"
+                },
+                {
+                  "key": "redirect_uri",
+                  "value": "{{redirectUri}}",
+                  "type": "text"
+                },
+                {
+                  "key": "code_verifier",
+                  "value": "{{codeVerifier}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "realms",
+                "{{realm}}",
+                "protocol",
+                "openid-connect",
+                "token"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Userinfo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Logged in', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/realms/{{realm}}/protocol/openid-connect/userinfo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "realms",
+                "{{realm}}",
+                "protocol",
+                "openid-connect",
+                "userinfo"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Refresh tokens",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Tokens issued', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "if (body.access_token) {",
+                  "  pm.environment.set('accessToken', body.access_token);",
+                  "  pm.environment.set('refreshToken', body.refresh_token || '');",
+                  "  pm.environment.set('idToken', body.id_token || '');",
+                  "  pm.environment.set('authCode', ''); // codes are single-use",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "refresh_token",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{clientId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "refresh_token",
+                  "value": "{{refreshToken}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "realms",
+                "{{realm}}",
+                "protocol",
+                "openid-connect",
+                "token"
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Logged out', () => pm.response.to.have.status(204));",
+                  "['accessToken', 'refreshToken', 'idToken'].forEach((k) => pm.environment.set(k, ''));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "client_id",
+                  "value": "{{clientId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "refresh_token",
+                  "value": "{{refreshToken}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/realms/{{realm}}/protocol/openid-connect/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "realms",
+                "{{realm}}",
+                "protocol",
+                "openid-connect",
+                "logout"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

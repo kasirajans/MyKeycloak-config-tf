@@ -16,3 +16,10 @@ variable "keycloak_password" {
   sensitive   = true
   description = "Keycloak admin password (password grant). Falls back to KEYCLOAK_PASSWORD if unset. Never commit a real value — terraform.tfvars is gitignored; in a pipeline, inject this as a secret (TF_VAR_keycloak_password or -var), not a checked-in tfvars file."
 }
+
+variable "smtp_passwords" {
+  type        = map(string)
+  default     = {}
+  sensitive   = true
+  description = "SMTP login passwords, keyed by server name from config/smtp/smtp.yml. Never commit: set in terraform.tfvars (gitignored) or TF_VAR_smtp_passwords."
+}

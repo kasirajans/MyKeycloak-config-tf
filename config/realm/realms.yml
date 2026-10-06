@@ -10,6 +10,7 @@ realms:
     login_with_email_allowed: true
     ssl_required: external
     access_token_lifespan: 5m
+    smtp: mailpit                # config/smtp/smtp.yml
 
   - realm: home-human-automation
     enabled: true
@@ -24,6 +25,7 @@ realms:
     login_with_email_allowed: true
     ssl_required: external
     access_token_lifespan: 5m
+    smtp: mailpit                # config/smtp/smtp.yml
 
   - realm: ai-agent
     enabled: true

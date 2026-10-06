@@ -1,0 +1,13 @@
+# The client itself is created in public/ or private/ (its own state,
+# with its redirect URIs etc.). This file only holds that client's roles; the client is
+# looked up via a data source by client_id = this file's name ("_example-client" here).
+
+# roles: this client's own app-specific roles, scoped to it (keycloak_role with
+# client_id set). Colocated here instead of a separate roles/client/<name>/ tree, since
+# a client's roles are always 1:1 with that client.
+roles:
+  - name: admin
+    description: Full control over this app.
+
+  - name: viewer
+    description: Read-only access to this app.

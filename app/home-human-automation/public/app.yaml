@@ -1,0 +1,15 @@
+# Public (PKCE) client for the home automation web app.
+# TODO: replace localhost:3000 with the app's real URL(s).
+
+name: Kraaj Home Automation
+description: Home automation web app for residents and guests.
+owner_team: home
+project: home-automation
+
+root_url: http://localhost:3000
+redirect_uris:
+  - http://localhost:3000/*
+post_logout_redirect_uris:
+  - http://localhost:3000/*
+web_origins:
+  - "+"
