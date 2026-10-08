@@ -1,1 +1,0 @@
-# TODO: define one downstream resource/audience: resource_id, the aud claim value Keycloak issues for it, the owning team/API provider, and (for MCP) the server URL. scopes/ reference resource_id instead of a free-text aud, so ci/policy can check both exist together.

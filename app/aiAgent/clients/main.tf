@@ -1,1 +1,0 @@
-# TODO: define Terraform resources for the "aiAgent clients (reads clients/**/*.yaml via for_each; computes client_id = <team>-<project>-<name> from the folder name + each YAML's project/name fields, and passes owner_team + project into modules/client for the Keycloak-side attributes)" module.
